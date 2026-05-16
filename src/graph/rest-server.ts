@@ -78,8 +78,26 @@ export class GraphRestServer<State extends Record<string, unknown>> {
     });
   }
 
-  stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
+  /**
+   * Wait until the server is accepting connections.
+   * Pings GET /health up to `maxAttempts` times with backoff between attempts.
+   * Call this instead of `start()` in CI or when startup races matter.
+   */
+  async ready(maxAttempts = 10, backoffMs = 50): Promise<void> {
+    await this.start();
+    const url = `${this.baseUrl}/health`;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(1_000) });
+        if (res.ok) return;
+      } catch { /* not ready yet */ }
+      await new Promise((r) => setTimeout(r, backoffMs * (i + 1)));
+    }
+    throw new Error(`GraphRestServer not ready after ${maxAttempts} attempts`);
+  }
+
+  async stop(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
       this.server.close((err) => (err ? reject(err) : resolve()));
     });
   }
@@ -99,16 +117,21 @@ export class GraphRestServer<State extends Record<string, unknown>> {
       return;
     }
 
+    const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
+    const segments = url.pathname.split("/").filter(Boolean);
+
+    // Health check — public, no auth required
+    if (segments.length === 1 && segments[0] === "health" && req.method === "GET") {
+      this.sendJson(res, 200, { status: "ok" }, cors);
+      return;
+    }
+
     if (this.config.apiKey && req.headers["x-api-key"] !== this.config.apiKey) {
       this.sendJson(res, 401, { error: "Unauthorized" }, cors);
       return;
     }
 
-    const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-    const segments = url.pathname.split("/").filter(Boolean);
-
     try {
-      // /threads
       if (segments[0] === "threads" && segments.length === 1 && req.method === "POST") {
         await this.createThread(req, res, cors);
         return;

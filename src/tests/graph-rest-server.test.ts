@@ -47,15 +47,23 @@ function buildTestGraph() {
 
 // ── HTTP Helper ──────────────────────────────────────────────────────────────
 
-async function fetchJson(server: GraphRestServer<any>, path: string, opts?: { method?: string; body?: unknown }): Promise<{ status: number; data: unknown }> {
+async function fetchJson(server: GraphRestServer<any>, path: string, opts?: { method?: string; body?: unknown }, attempt = 1): Promise<{ status: number; data: unknown }> {
   const url = `${server.baseUrl}${path}`;
-  const res = await fetch(url, {
-    method: opts?.method ?? "GET",
-    headers: { "Content-Type": "application/json" },
-    body: opts?.body ? JSON.stringify(opts.body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  return { status: res.status, data };
+  try {
+    const res = await fetch(url, {
+      method: opts?.method ?? "GET",
+      headers: { "Content-Type": "application/json" },
+      body: opts?.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, data };
+  } catch (err) {
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 100 * attempt));
+      return fetchJson(server, path, opts, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -66,7 +74,7 @@ describe("GraphRestServer", () => {
   beforeEach(async () => {
     const graph = buildTestGraph().compile({ checkpointer: new MemoryGraphCheckpointer() });
     server = new GraphRestServer({ graph, port: 18123 });
-    await server.start();
+    await server.ready();
   });
 
   afterEach(async () => {
@@ -195,7 +203,7 @@ describe("GraphRestServer", () => {
 
     const graph = buildTestGraph().compile();
     const secureServer = new GraphRestServer({ graph, port: 18124, apiKey: "secret123" });
-    await secureServer.start();
+    await secureServer.ready();
 
     try {
       const { status: noKey } = await fetchJson(secureServer, "/threads", { method: "POST", body: {} });
