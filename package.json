@@ -1,6 +1,6 @@
 {
   "name": "chorus-engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Headless agent engine — streaming loop, HITL, DAG swarms, adaptive skills, MCP, A2A",
   "type": "module",
   "main": "./dist/index.js",
