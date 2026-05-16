@@ -106,6 +106,7 @@ jobs:
           test -f dist/evals/index.d.ts || (echo "Missing dist/evals/index.d.ts" && exit 1)
           test -f dist/mcp/index.d.ts || (echo "Missing dist/mcp/index.d.ts" && exit 1)
           test -f dist/harness/index.d.ts || (echo "Missing dist/harness/index.d.ts" && exit 1)
+          test -f dist/graph/index.d.ts || (echo "Missing dist/graph/index.d.ts" && exit 1)
           echo "✓ All type definitions verified"
 
   analyze:

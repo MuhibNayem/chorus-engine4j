@@ -2,8 +2,7 @@ name: Publish to npm
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
 
 permissions:
   contents: write
@@ -11,8 +10,9 @@ permissions:
 
 jobs:
   publish:
-    name: Build, Test & Publish
+    name: Build, Test, Publish & Release
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
     steps:
       - uses: actions/checkout@v4
@@ -24,38 +24,42 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Verify tag matches version
+      - name: Extract version
+        id: version
         run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Tag version ($TAG_VERSION) != package.json version ($PKG_VERSION)"
-            exit 1
-          fi
-          echo "✓ Version $TAG_VERSION verified"
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Verify clean working tree
+      - name: Check if already published
+        id: check
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Working tree is not clean"
-            git status
-            exit 1
+          PKG="${{ steps.version.outputs.version }}"
+          if npm view "chorus-engine@$PKG" version 2>/dev/null | grep -q "$PKG"; then
+            echo "already-published=true" >> $GITHUB_OUTPUT
+            echo "Version $PKG already exists on npm — skipping publish."
+          else
+            echo "already-published=false" >> $GITHUB_OUTPUT
+            echo "Version $PKG is new — proceeding with publish."
           fi
-          echo "✓ Working tree is clean"
 
       - name: Install
+        if: steps.check.outputs.already-published == 'false'
         run: npm ci
 
       - name: Type check
+        if: steps.check.outputs.already-published == 'false'
         run: npm run typecheck
 
       - name: Build
+        if: steps.check.outputs.already-published == 'false'
         run: npm run build
 
       - name: Test
-        run: npm test
+        if: steps.check.outputs.already-published == 'false'
+        run: npm run test:coverage
 
       - name: Verify build output
+        if: steps.check.outputs.already-published == 'false'
         run: |
           test -f dist/index.js || (echo "Missing dist/index.js" && exit 1)
           test -f dist/index.d.ts || (echo "Missing dist/index.d.ts" && exit 1)
@@ -73,29 +77,25 @@ jobs:
           test -f dist/mcp/index.d.ts || (echo "Missing dist/mcp/index.d.ts" && exit 1)
           test -f dist/harness/index.js || (echo "Missing dist/harness/index.js" && exit 1)
           test -f dist/harness/index.d.ts || (echo "Missing dist/harness/index.d.ts" && exit 1)
+          test -f dist/graph/index.js || (echo "Missing dist/graph/index.js" && exit 1)
+          test -f dist/graph/index.d.ts || (echo "Missing dist/graph/index.d.ts" && exit 1)
           echo "✓ All build outputs verified"
 
-      - name: Verify package contents
+      - name: Create git tag
+        if: steps.check.outputs.already-published == 'false'
         run: |
-          node -e "
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
-          if (!pkg.files) { console.error('Missing files field'); process.exit(1); }
-          for (const file of pkg.files) {
-            if (!fs.existsSync(file)) {
-              console.error('Missing file in files array:', file);
-              process.exit(1);
-            }
-          }
-          console.log('✓ Package files verified');
-          "
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Publish to npm
+        if: steps.check.outputs.already-published == 'false'
         run: npm publish --provenance --access public
 
       - name: Create GitHub Release
+        if: steps.check.outputs.already-published == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
           make_latest: true
