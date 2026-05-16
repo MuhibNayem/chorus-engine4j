@@ -1,0 +1,11 @@
+export { runSwarm } from "./orchestrator.js";
+export { runSwarmGraph, computeWaves } from "./graph-executor.js";
+export { buildSupervisorSwarm } from "./supervisor.js";
+export { runGroupChat } from "./group-chat.js";
+export type { SwarmConfig, SwarmAgent, SwarmEvent, SwarmSession, HandoffRequest, CostBudget, CostRoutingPolicy, AgentMetrics } from "./types.js";
+export type { GroupChatConfig, GroupChatEvent, GroupChatAgent } from "./group-chat.js";
+export { buildPresetSwarm, SWARM_PRESETS } from "./presets/index.js";
+export { createPlanBuildReviewSwarm } from "./presets/plan-build-review.js";
+export { createResearchSynthesizeSwarm } from "./presets/research-synthesize.js";
+export { createParallelResearchSwarm } from "./presets/research-parallel.js";
+export { createVaptReportSwarm } from "./presets/vapt-report.js";
