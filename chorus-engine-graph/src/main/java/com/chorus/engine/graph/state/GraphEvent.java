@@ -40,4 +40,8 @@ public sealed interface GraphEvent<S> {
         @NonNull String nodeName,
         @NonNull Throwable error
     ) implements GraphEvent<S> {}
+
+    record SpeculativeHit<S>(
+        @NonNull String nodeName
+    ) implements GraphEvent<S> {}
 }
