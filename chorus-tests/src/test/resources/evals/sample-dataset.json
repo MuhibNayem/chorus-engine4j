@@ -1,0 +1,37 @@
+[
+  {
+    "id": "calc-001",
+    "input": "What is 2 + 2?",
+    "expectedOutput": "4",
+    "rubric": "The answer must be exactly 4.",
+    "tags": ["math", "addition"]
+  },
+  {
+    "id": "calc-002",
+    "input": "Calculate 10 minus 3.",
+    "expectedOutput": "7",
+    "rubric": "The answer must be exactly 7.",
+    "tags": ["math", "subtraction"]
+  },
+  {
+    "id": "calc-003",
+    "input": "What is 6 multiplied by 7?",
+    "expectedOutput": "42",
+    "rubric": "The answer must be exactly 42.",
+    "tags": ["math", "multiplication"]
+  },
+  {
+    "id": "calc-004",
+    "input": "Divide 100 by 4.",
+    "expectedOutput": "25",
+    "rubric": "The answer must be exactly 25.",
+    "tags": ["math", "division"]
+  },
+  {
+    "id": "calc-005",
+    "input": "What is the result of (8 + 2) * 5?",
+    "expectedOutput": "50",
+    "rubric": "The answer must be exactly 50.",
+    "tags": ["math", "mixed"]
+  }
+]
