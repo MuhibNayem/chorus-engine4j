@@ -2,6 +2,8 @@ package com.chorus.engine.core.context;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.*;
 
 class MessageTest {
@@ -62,5 +64,34 @@ class MessageTest {
     void role_fromString_unknown() {
         assertThatThrownBy(() -> Role.fromString("unknown"))
             .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void withMetadata_createsCopy() {
+        Message original = Message.user("hello");
+        Message updated = original.withMetadata(Map.of("key", "value"));
+        assertThat(updated.metadata()).containsEntry("key", "value");
+        assertThat(original.metadata()).isNull();
+    }
+
+    @Test
+    void metadataImmutability() {
+        java.util.HashMap<String, Object> mutable = new java.util.HashMap<>();
+        mutable.put("a", 1);
+        Message m = new Message(Role.USER, "hi", null, null, mutable);
+        mutable.put("b", 2);
+        assertThat(m.metadata()).containsOnlyKeys("a");
+        assertThatThrownBy(() -> m.metadata().put("c", 3))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void toolFactory_assertions() {
+        Message tool = Message.tool("tool result", "call_123");
+        assertThat(tool.role()).isEqualTo(Role.TOOL);
+        assertThat(tool.content()).isEqualTo("tool result");
+        assertThat(tool.toolCallId()).isEqualTo("call_123");
+        assertThat(tool.name()).isNull();
+        assertThat(tool.metadata()).isNull();
     }
 }

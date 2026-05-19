@@ -32,6 +32,7 @@ public final class ShortTermMemory {
     }
 
     public void add(@NonNull Message message, int tokenCount) {
+        Objects.requireNonNull(message, "message");
         String id = UUID.randomUUID().toString();
         MemoryEntry entry = new MemoryEntry(id, message, tokenCount, Instant.now());
         entries.addLast(entry);

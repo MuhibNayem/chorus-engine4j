@@ -58,10 +58,10 @@ final class VectorOpsProvider {
 
     private static VectorOperations createVectorApi() {
         try {
-            // Probe for Vector API availability without hard dependency
-            Class.forName("jdk.incubator.vector.FloatVector");
+            // Loading VectorApiOperations triggers resolution of jdk.incubator.vector classes.
+            // In native image, if the module is absent, this throws NoClassDefFoundError.
             return VectorApiOperations.create();
-        } catch (ClassNotFoundException | UnsupportedOperationException e) {
+        } catch (NoClassDefFoundError | UnsupportedOperationException e) {
             LOGGER.fine("Vector API not available: " + e.getMessage());
             return null;
         }

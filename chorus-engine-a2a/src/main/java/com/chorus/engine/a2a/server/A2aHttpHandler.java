@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
@@ -25,11 +26,12 @@ public final class A2aHttpHandler {
     }
 
     public A2aHttpHandler(@NonNull A2aServer server, @NonNull ObjectMapper mapper) {
-        this.server = server;
-        this.mapper = mapper;
+        this.server = Objects.requireNonNull(server, "server cannot be null");
+        this.mapper = Objects.requireNonNull(mapper, "mapper cannot be null");
     }
 
     public @NonNull A2aHttpResponse handle(@NonNull HttpRequest request) {
+        Objects.requireNonNull(request, "request cannot be null");
         String path = request.uri().getPath();
         String method = request.method();
 

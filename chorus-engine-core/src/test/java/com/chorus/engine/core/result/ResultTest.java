@@ -100,4 +100,63 @@ class ResultTest {
         Result.err("y").ifOk(v -> sb.append("ok")).ifErr(e -> sb.append("err:").append(e));
         assertThat(sb.toString()).isEqualTo("err:y");
     }
+
+    @Test
+    void ok_unwrapOrElse_returnsValue() {
+        Result<String, String> r = Result.ok("hello");
+        assertThat(r.unwrapOrElse(e -> "fallback")).isEqualTo("hello");
+    }
+
+    @Test
+    void err_flatMap_passesThrough() {
+        Result<Integer, String> r = Result.<Integer, String>err("fail")
+                .flatMap(x -> Result.ok(x * 2));
+        assertThat(r.isErr()).isTrue();
+        assertThat(r.unwrapErr()).isEqualTo("fail");
+    }
+
+    @Test
+    void ok_mapErr_passesThrough() {
+        Result<String, String> r = Result.<String, String>ok("ok").mapErr(e -> "mapped");
+        assertThat(r.isOk()).isTrue();
+        assertThat(r.unwrap()).isEqualTo("ok");
+    }
+
+    @Test
+    void err_filter_passesThrough() {
+        Result<Integer, String> r = Result.<Integer, String>err("fail")
+                .filter(x -> x > 0, () -> "too small");
+        assertThat(r.isErr()).isTrue();
+        assertThat(r.unwrapErr()).isEqualTo("fail");
+    }
+
+    @Test
+    void ofNullable_withNonNull_returnsOk() {
+        Result<String, String> r = Result.ofNullable("value", () -> "missing");
+        assertThat(r.isOk()).isTrue();
+        assertThat(r.unwrap()).isEqualTo("value");
+    }
+
+    @Test
+    void ofNullable_withNull_returnsErr() {
+        Result<String, String> r = Result.ofNullable(null, () -> "missing");
+        assertThat(r.isErr()).isTrue();
+        assertThat(r.unwrapErr()).isEqualTo("missing");
+    }
+
+    @Test
+    void err_unwrap_throws() {
+        Result<String, String> r = Result.err("boom");
+        assertThatThrownBy(r::unwrap)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("boom");
+    }
+
+    @Test
+    void ok_unwrapErr_throws() {
+        Result<String, String> r = Result.ok("value");
+        assertThatThrownBy(r::unwrapErr)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("unwrapErr on Ok");
+    }
 }

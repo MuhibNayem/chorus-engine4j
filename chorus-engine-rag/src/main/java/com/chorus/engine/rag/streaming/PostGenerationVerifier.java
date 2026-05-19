@@ -10,6 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Verifies whether an already-generated answer is consistent with
@@ -65,6 +66,10 @@ public final class PostGenerationVerifier {
         @NonNull List<Chunk> supplementalChunks,
         @NonNull CancellationToken token
     ) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(answer, "answer");
+        Objects.requireNonNull(supplementalChunks, "supplementalChunks");
+        Objects.requireNonNull(token, "token");
         if (supplementalChunks.isEmpty()) {
             return new VerificationResult(ResultType.VERIFIED, 1.0, null, List.of(),
                 "No supplemental chunks to verify against.");

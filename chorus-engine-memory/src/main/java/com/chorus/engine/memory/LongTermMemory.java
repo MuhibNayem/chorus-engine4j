@@ -45,6 +45,8 @@ public final class LongTermMemory {
     }
 
     public void store(@NonNull Message message, @NonNull String key, @Nullable Map<String, Object> metadata) {
+        Objects.requireNonNull(message, "message");
+        Objects.requireNonNull(key, "key");
         float[] embedding = computeEmbedding(message.content());
         MemoryDocument doc = new MemoryDocument(key, message, embedding,
             metadata != null ? Map.copyOf(metadata) : Map.of(), Instant.now());
@@ -53,6 +55,7 @@ public final class LongTermMemory {
     }
 
     public @NonNull List<RetrievalResult> retrieve(@NonNull String query, int topK) {
+        Objects.requireNonNull(query, "query");
         if (documents.isEmpty()) return List.of();
 
         float[] queryEmbedding = computeEmbedding(query);
@@ -66,7 +69,7 @@ public final class LongTermMemory {
                 double score = bm25Weight * bm25 + semanticWeight * semantic;
                 return new RetrievalResult(doc.key, doc.message, score, bm25, semantic, doc.timestamp);
             })
-            .filter(r -> r.score > 0.001)
+            .filter(r -> r.score >= 0.0)
             .sorted(Comparator.comparingDouble(r -> -r.score))
             .limit(topK)
             .toList();

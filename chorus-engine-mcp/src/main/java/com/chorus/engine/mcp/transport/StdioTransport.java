@@ -12,6 +12,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,8 +37,8 @@ public final class StdioTransport implements McpTransport {
     private volatile PrintWriter writer;
 
     public StdioTransport(@NonNull List<String> command, @NonNull ObjectMapper mapper) {
-        this.command = List.copyOf(command);
-        this.mapper = mapper;
+        this.command = List.copyOf(Objects.requireNonNull(command, "command"));
+        this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
     @Override
@@ -62,6 +63,7 @@ public final class StdioTransport implements McpTransport {
 
     @Override
     public void send(@NonNull JsonRpcMessage message) {
+        Objects.requireNonNull(message, "message");
         if (closed.get()) {
             throw new IllegalStateException("Transport is closed");
         }

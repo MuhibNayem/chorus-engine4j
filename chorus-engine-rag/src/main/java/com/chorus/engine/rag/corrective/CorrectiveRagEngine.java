@@ -48,7 +48,7 @@ public final class CorrectiveRagEngine {
         DocumentGrade grade = gradeDocuments(query, retrieved);
 
         return switch (grade.action()) {
-            case USE -> new CorrectiveResult(query, retrieved, grade, Action.USE, null);
+            case USE -> new CorrectiveResult(query, retrieved, grade, Action.USE, "");
             case REFORMULATE -> {
                 String betterQuery = reformulate(query, retrieved);
                 List<RetrievalEngine.RetrievalResult> reformulated = retrievalEngine.retrieve(

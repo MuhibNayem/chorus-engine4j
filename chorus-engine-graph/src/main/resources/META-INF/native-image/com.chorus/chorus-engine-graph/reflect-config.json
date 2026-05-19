@@ -1,0 +1,42 @@
+[
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$NodeStart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$NodeEnd",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$EdgeTransition",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$CheckpointSaved",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$GraphEnd",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$GraphError",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.graph.state.GraphEvent$SpeculativeHit",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

@@ -33,6 +33,8 @@ public final class LlmJudgeReranker implements Reranker {
 
     @Override
     public @NonNull List<RankedResult> rerank(@NonNull String query, @NonNull List<Chunk> candidates, int topN) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(candidates, "candidates");
         List<Future<RankedResult>> futures = new ArrayList<>();
 
         for (Chunk chunk : candidates) {

@@ -25,13 +25,15 @@ public final class ContextCompactor {
      * Preserves system prompt and the most recent messages.
      */
     public @NonNull CompactionResult summarize(@NonNull List<Message> history, @NonNull Summarizer summarizer) {
+        Objects.requireNonNull(history, "history");
+        Objects.requireNonNull(summarizer, "summarizer");
         if (history.size() <= 2) {
             return new CompactionResult(history, "history too short to compact");
         }
 
         // Always preserve system prompt and last 2 messages
         Message system = history.get(0).role() == Role.SYSTEM ? history.get(0) : null;
-        int preserveEnd = Math.min(3, history.size());
+        int preserveEnd = Math.min(2, history.size());
         List<Message> recent = history.subList(history.size() - preserveEnd, history.size());
         List<Message> middle = history.subList(system != null ? 1 : 0, history.size() - preserveEnd);
 
@@ -56,6 +58,9 @@ public final class ContextCompactor {
         @NonNull String currentQuery,
         @NonNull RelevanceScorer scorer
     ) {
+        Objects.requireNonNull(history, "history");
+        Objects.requireNonNull(currentQuery, "currentQuery");
+        Objects.requireNonNull(scorer, "scorer");
         if (history.size() <= 4) {
             return new CompactionResult(history, "history too short");
         }

@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -33,8 +34,8 @@ public final class TaskOrchestrator {
     ) {
         this.fallbackRouter = new TaskRouter();
         this.semanticRouter = semanticRouter;
-        this.repoIntelligence = repoIntelligence;
-        this.projectMemoryStore = projectMemoryStore;
+        this.repoIntelligence = Objects.requireNonNull(repoIntelligence, "repoIntelligence");
+        this.projectMemoryStore = Objects.requireNonNull(projectMemoryStore, "projectMemoryStore");
     }
 
     /**

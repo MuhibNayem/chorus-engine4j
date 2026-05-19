@@ -6,6 +6,7 @@ import com.chorus.engine.rag.rerank.Reranker;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -43,6 +44,8 @@ public final class RerankedStage implements RetrievalStage {
     }
 
     public @NonNull CompletableFuture<List<Chunk>> rerank(@NonNull String query, @NonNull List<Chunk> candidates) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(candidates, "candidates");
         return CompletableFuture.supplyAsync(() ->
             reranker.rerank(query, candidates, topN).stream()
                 .map(Reranker.RankedResult::chunk)

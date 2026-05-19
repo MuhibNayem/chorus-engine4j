@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Flow;
 import java.util.concurrent.StructuredTaskScope;
@@ -64,9 +65,10 @@ public final class HarnessEngine {
         @Nullable EmbeddingClient embeddingClient,
         @NonNull Path workspace
     ) {
-        this.config = config;
-        this.llmClient = llmClient;
-        this.agentLoop = agentLoop;
+        this.config = Objects.requireNonNull(config, "config");
+        this.llmClient = Objects.requireNonNull(llmClient, "llmClient");
+        this.agentLoop = Objects.requireNonNull(agentLoop, "agentLoop");
+        Objects.requireNonNull(workspace, "workspace");
 
         RepoIntelligence repoIntel = new RepoIntelligenceDetector(workspace).detect();
         this.projectMemory = new ProjectMemoryStore(config.projectMemoryPath(), workspace.toString());

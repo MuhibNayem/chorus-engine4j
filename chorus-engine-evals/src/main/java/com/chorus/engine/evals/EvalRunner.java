@@ -51,6 +51,9 @@ public final class EvalRunner {
             String actualOutput;
             try {
                 actualOutput = agentRunner.apply(testCase.input());
+                if (actualOutput == null) {
+                    actualOutput = "null";
+                }
             } catch (Exception e) {
                 actualOutput = "ERROR: " + e.getMessage();
             }

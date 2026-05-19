@@ -28,12 +28,20 @@ public final class TenantAwareVectorStore implements VectorStore {
 
     @Override
     public void upsert(@NonNull List<Chunk> chunks) {
-        String tenantId = extractTenant(chunks);
-        getStore(tenantId).upsert(chunks);
+        Objects.requireNonNull(chunks, "chunks");
+        Map<String, List<Chunk>> byTenant = new HashMap<>();
+        for (Chunk chunk : chunks) {
+            String tenantId = extractTenant(List.of(chunk));
+            byTenant.computeIfAbsent(tenantId, k -> new ArrayList<>()).add(chunk);
+        }
+        for (Map.Entry<String, List<Chunk>> entry : byTenant.entrySet()) {
+            getStore(entry.getKey()).upsert(entry.getValue());
+        }
     }
 
     @Override
     public @NonNull List<RetrievalResult> search(@NonNull float[] queryEmbedding, int topK, @NonNull Map<String, Object> filters) {
+        Objects.requireNonNull(filters, "filters");
         String tenantId = filters.getOrDefault("_tenantId", "default").toString();
         Map<String, Object> tenantFilters = new HashMap<>(filters);
         tenantFilters.remove("_tenantId");
@@ -42,7 +50,7 @@ public final class TenantAwareVectorStore implements VectorStore {
 
     @Override
     public void delete(@NonNull Set<String> chunkIds) {
-        // Requires tenant context — iterate all stores
+        Objects.requireNonNull(chunkIds, "chunkIds");
         for (VectorStore store : tenantStores.values()) {
             store.delete(chunkIds);
         }
@@ -50,6 +58,7 @@ public final class TenantAwareVectorStore implements VectorStore {
 
     @Override
     public void deleteByDocument(@NonNull String documentId) {
+        Objects.requireNonNull(documentId, "documentId");
         for (VectorStore store : tenantStores.values()) {
             store.deleteByDocument(documentId);
         }

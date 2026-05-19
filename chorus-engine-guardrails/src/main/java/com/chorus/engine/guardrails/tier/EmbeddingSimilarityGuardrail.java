@@ -9,6 +9,7 @@ import org.jspecify.annotations.NonNull;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -47,6 +48,8 @@ public final class EmbeddingSimilarityGuardrail implements Guardrail {
 
     @Override
     public @NonNull GuardrailResult evaluate(@NonNull String input, @NonNull GuardrailContext context) {
+        Objects.requireNonNull(input, "input");
+        Objects.requireNonNull(context, "context");
         Instant start = Instant.now();
 
         float[] inputEmbedding = cache.computeIfAbsent(input, k -> {
@@ -66,7 +69,7 @@ public final class EmbeddingSimilarityGuardrail implements Guardrail {
         }
 
         Duration latency = Duration.between(start, Instant.now());
-        if (maxSim >= threshold) {
+        if (maxSim + 1e-6 >= threshold) {
             return GuardrailResult.block(name, 2, "similarity=" + String.format("%.3f", maxSim), maxSim, latency);
         }
         return GuardrailResult.allow(name, 2, latency);

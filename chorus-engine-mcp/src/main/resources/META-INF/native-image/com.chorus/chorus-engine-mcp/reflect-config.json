@@ -1,0 +1,77 @@
+[
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpMessage$JsonRpcMessage",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpMessage$JsonRpcRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpMessage$JsonRpcResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpMessage$JsonRpcNotification",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpMessage$JsonRpcError",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpMessage$JsonRpcError$ErrorDetail",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$Content",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$Content$TextContent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$Content$ImageContent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$Content$EmbeddedResourceContent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$CallToolResult",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$ReadResourceResult",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$GetPromptResult",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$ResourceContent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.mcp.protocol.McpResult$PromptMessage",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

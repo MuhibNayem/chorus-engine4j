@@ -3,13 +3,32 @@ spring:
     name: chorus-engine-sample
 
 chorus:
+  enabled: true
+
+  thread-pool:
+    enabled: true
+    max-virtual-threads: 10000
+    name-prefix: chorus-
+
+  # ------------------------------------------------------------------
+  # LLM Provider (required for most features)
+  # ------------------------------------------------------------------
   llm:
+    enabled: true
     provider: openai
     base-url: https://api.openai.com/v1
     api-key: ${OPENAI_API_KEY:}
     model: gpt-4o
     temperature: 0.7
     max-tokens: 4096
+    connect-timeout-seconds: 30
+    read-timeout-seconds: 120
+    max-retries: 3
+    circuit-breaker-enabled: true
+
+  # ------------------------------------------------------------------
+  # RAG Pipeline
+  # ------------------------------------------------------------------
   rag:
     enabled: true
     vector-store-type: memory
@@ -18,19 +37,182 @@ chorus:
     max-context-tokens: 2048
     embedding-model: text-embedding-3-small
     embedding-dimensions: 1536
+
+    # Advanced RAG (opt-in)
+    agentic-rag-enabled: false
+    agentic-rag-max-iterations: 5
+    corrective-rag-enabled: false
+    corrective-rag-threshold: 0.7
+    self-rag-enabled: false
+    self-rag-max-refinements: 3
+    self-rag-relevance-threshold: 0.6
+    incremental-streaming-enabled: false
+    incremental-strategy: ADAPTIVE
+    incremental-max-generation-tokens: 2048
+    incremental-max-latency-seconds: 30
+
+    # Enterprise multi-tenancy
+    tenant-isolation-enabled: false
+    tenant-isolation-level: SOFT
+
+  # ------------------------------------------------------------------
+  # Agent Loop
+  # ------------------------------------------------------------------
   agent:
     enabled: true
     agent-id: chorus-agent
     system-prompt: "You are a helpful assistant."
     max-rounds: 10
     hitl-timeout-minutes: 5
+    self-healing-enabled: false
+    self-healing-max-retries: 3
+
+  # ------------------------------------------------------------------
+  # Swarm Orchestration
+  # ------------------------------------------------------------------
   swarm:
     enabled: true
     max-turns: 10
     timeout-per-agent-seconds: 60
     enable-circuit-breakers: true
     enable-cost-routing: false
+    consensus-enabled: false
+    consensus-min-agents: 3
+    consensus-threshold: 0.66
 
+  # ------------------------------------------------------------------
+  # Graph Execution (opt-in)
+  # ------------------------------------------------------------------
+  graph:
+    enabled: false
+    speculative-execution-enabled: false
+    speculative-hit-rate-threshold: 0.8
+    speculative-max-iterations: 100
+    checkpointing-enabled: true
+    checkpoint-type: memory
+    hitl-interrupt-enabled: false
+
+  # ------------------------------------------------------------------
+  # GSD Harness (opt-in)
+  # ------------------------------------------------------------------
+  harness:
+    enabled: false
+    project-memory-path: .chorus/memory
+    approval-log-path: .chorus/approvals
+    trajectory-log-path: .chorus/trajectory
+    max-concurrent-workers: 8
+    worker-timeout-seconds: 300
+    task-timeout-seconds: 600
+    enable-semantic-routing: true
+    enable-safety-audit: true
+    enable-time-travel: true
+    enable-result-cache: true
+    semantic-confidence-threshold: 0.75
+    default-approval-policy: SUGGEST
+
+  # ------------------------------------------------------------------
+  # Guardrails (opt-in)
+  # ------------------------------------------------------------------
+  guardrails:
+    enabled: false
+    pii-redaction-enabled: true
+    regex-rules: []
+    keyword-rules: []
+    embedding-similarity-enabled: false
+    embedding-similarity-threshold: 0.85
+    llm-judge-enabled: false
+    llm-judge-policy: "Block harmful, illegal, or toxic content."
+    llm-judge-block-threshold: 0.8
+    tier2-timeout-millis: 500
+    tier3-timeout-millis: 5000
+
+  # ------------------------------------------------------------------
+  # Telemetry & Observability
+  # ------------------------------------------------------------------
+  telemetry:
+    enabled: true
+    metrics-enabled: true
+    cost-tracking-enabled: false
+    provenance-tracking-enabled: true
+    structured-logging-enabled: true
+    open-telemetry-enabled: false
+    open-telemetry-endpoint: http://localhost:4317
+    open-telemetry-headers: {}
+    open-telemetry-sampling-rate: 1.0
+    budget-limit: -1
+    max-histogram-size: 10000
+    provenance-max-entries: 100000
+
+  # ------------------------------------------------------------------
+  # Memory Management (opt-in)
+  # ------------------------------------------------------------------
+  memory:
+    enabled: false
+    hierarchical-enabled: false
+    short-term-max-tokens: 4000
+    short-term-max-messages: 20
+    long-term-enabled: false
+    long-term-bm25-weight: 0.3
+    long-term-semantic-weight: 0.7
+    context-compaction-enabled: true
+    compaction-target-tokens: 2000
+    checkpointing-enabled: false
+    checkpoint-type: memory
+    checkpoint-jdbc-table: chorus_checkpoints
+    checkpoint-redis-key-prefix: "chorus:cp:"
+    checkpoint-redis-ttl-seconds: 86400
+
+  # ------------------------------------------------------------------
+  # MCP (Model Context Protocol) (opt-in)
+  # ------------------------------------------------------------------
+  mcp:
+    enabled: false
+    transport-type: http-sse
+    http-sse-endpoint: http://localhost:3000/sse
+    stdio-command: []
+    server-enabled: false
+    server-tools: true
+    server-resources: true
+    server-prompts: false
+    server-logging: true
+    server-completion: false
+
+  # ------------------------------------------------------------------
+  # A2A (Agent-to-Agent) (opt-in)
+  # ------------------------------------------------------------------
+  a2a:
+    enabled: false
+    base-url: ""
+    auth-token: ""
+    server-enabled: false
+    server-agent-name: chorus-agent
+    server-agent-description: "Chorus Engine agent"
+    server-agent-version: "1.0.0"
+    server-agent-url: ""
+
+  # ------------------------------------------------------------------
+  # Evaluations (opt-in)
+  # ------------------------------------------------------------------
+  evals:
+    enabled: false
+    parallel-enabled: true
+    parallel-max-concurrency: 0
+    default-scorer: exact_match
+    llm-judge-pass-threshold: 0.7
+    semantic-similarity-threshold: 0.8
+
+  # ------------------------------------------------------------------
+  # Enterprise Security
+  # ------------------------------------------------------------------
+  enterprise:
+    audit-log-enabled: false
+    access-control-enabled: false
+    default-tenant-id: default
+    multi-tenancy-enabled: false
+
+# ------------------------------------------------------------------
+# Spring Boot Actuator
+# ------------------------------------------------------------------
 management:
   endpoints:
     web:

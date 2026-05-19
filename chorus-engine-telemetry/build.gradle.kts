@@ -14,4 +14,8 @@ dependencies {
 
     // SLF4J optional for structured logging integration
     compileOnly("org.slf4j:slf4j-api:2.0.16")
+
+    testImplementation("io.opentelemetry:opentelemetry-api:1.43.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.43.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.43.0")
 }

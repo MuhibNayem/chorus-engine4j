@@ -13,6 +13,8 @@ import com.chorus.engine.telemetry.event.ToolCallEvent;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 /**
  * Bridges {@link ChorusEvent} instances to OpenTelemetry spans and metrics.
  * <p>
@@ -26,7 +28,8 @@ public final class OpenTelemetryBridge {
     private final @Nullable OtelDelegate delegate;
 
     public OpenTelemetryBridge(@NonNull EventBus eventBus, @NonNull OtelConfig config) {
-        this.eventBus = eventBus;
+        this.eventBus = Objects.requireNonNull(eventBus, "eventBus");
+        Objects.requireNonNull(config, "config");
         this.delegate = OtelDelegate.create(config);
         if (delegate != null) {
             eventBus.subscribe("*", this::onEvent);
@@ -74,9 +77,10 @@ public final class OpenTelemetryBridge {
 
         static @Nullable OtelDelegate create(@NonNull OtelConfig config) {
             try {
-                Class.forName("io.opentelemetry.api.trace.Tracer");
+                // Loading OtelDelegate triggers resolution of OTel classes.
+                // In native image, if OTel is absent, this throws NoClassDefFoundError.
                 return new OtelDelegate(config);
-            } catch (ClassNotFoundException e) {
+            } catch (NoClassDefFoundError e) {
                 return null;
             }
         }

@@ -51,4 +51,88 @@ class EvalReportExporterTest {
         assertThat(md).contains("PASS");
         assertThat(md).contains("FAIL");
     }
+
+    // --- Expanded tests ---
+
+    @Test
+    void exportJunitXmlEscapesSpecialCharacters() {
+        EvalReport report = new EvalReport("suite & test <run>", 1, 0, 0.0, 0.0,
+            Duration.ZERO,
+            List.of(
+                new EvalResult("case \"1\"", false, 0.0, "out & about", "it's > 0")
+            ));
+
+        String xml = exporter.exportJunitXml(report);
+
+        assertThat(xml).contains("suite &amp; test &lt;run&gt;");
+        assertThat(xml).contains("case &quot;1&quot;");
+        assertThat(xml).contains("Actual: out & about");
+        assertThat(xml).doesNotContain("suite & test <run>");
+        assertThat(xml).doesNotContain("case \"1\"");
+    }
+
+    @Test
+    void exportJunitXmlEscapesApostrophe() {
+        EvalReport report = new EvalReport("it's", 1, 1, 1.0, 1.0,
+            Duration.ZERO,
+            List.of(new EvalResult("c1", true, 1.0, "ok", null)));
+
+        String xml = exporter.exportJunitXml(report);
+
+        assertThat(xml).contains("it&apos;s");
+    }
+
+    @Test
+    void exportMarkdownTruncatesLongActualOutput() {
+        String longOutput = "a".repeat(60);
+        EvalReport report = new EvalReport("trunc-test", 1, 1, 1.0, 1.0,
+            Duration.ZERO,
+            List.of(new EvalResult("c1", true, 1.0, longOutput, null)));
+
+        String md = exporter.exportMarkdown(report);
+
+        assertThat(md).contains("a".repeat(50) + "...");
+        assertThat(md).doesNotContain(longOutput);
+    }
+
+    @Test
+    void exportMarkdownEscapesPipeInOutput() {
+        EvalReport report = new EvalReport("pipe-test", 1, 1, 1.0, 1.0,
+            Duration.ZERO,
+            List.of(new EvalResult("c1", true, 1.0, "a|b|c", null)));
+
+        String md = exporter.exportMarkdown(report);
+
+        assertThat(md).contains("a\\|b\\|c");
+    }
+
+    @Test
+    void exportEmptyReport() {
+        EvalReport emptyReport = new EvalReport("empty", 0, 0, 0.0, 0.0,
+            Duration.ZERO, List.of());
+
+        String xml = exporter.exportJunitXml(emptyReport);
+        assertThat(xml).contains("tests=\"0\"");
+        assertThat(xml).contains("failures=\"0\"");
+        assertThat(xml).doesNotContain("<failure");
+
+        String md = exporter.exportMarkdown(emptyReport);
+        assertThat(md).contains("| Total Cases | 0 |");
+        assertThat(md).contains("| Passed | 0 |");
+    }
+
+    @Test
+    void exportJsonWithNullReasoning(@TempDir Path temp) throws Exception {
+        EvalReport report = new EvalReport("null-reason", 1, 1, 1.0, 1.0,
+            Duration.ZERO,
+            List.of(new EvalResult("c1", true, 1.0, "ok", null)));
+
+        Path path = temp.resolve("report.json");
+        exporter.exportJson(report, path);
+        String content = java.nio.file.Files.readString(path);
+
+        assertThat(content).contains("null-reason");
+        assertThat(content).contains("c1");
+        assertThat(content).contains("\"reasoning\" : null");
+    }
 }

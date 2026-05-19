@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -56,9 +57,14 @@ public final class SemanticTaskRouter {
      * Falls back to regex routing if embedding fails or confidence is too low.
      */
     public @NonNull SemanticRouteResult route(@NonNull String text, @NonNull String expandedText) {
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(expandedText, "expandedText");
         ensureInitialized();
 
         String combined = (text + " " + expandedText).trim();
+        if (combined.isEmpty()) {
+            return fallback(text, expandedText);
+        }
 
         try {
             var embedResult = embedder.embed(combined, embedOptions());
@@ -79,6 +85,8 @@ public final class SemanticTaskRouter {
      * Useful for debugging and diagnostics.
      */
     public @NonNull List<RouteScore> score(@NonNull String text, @NonNull String expandedText) {
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(expandedText, "expandedText");
         ensureInitialized();
 
         String combined = (text + " " + expandedText).trim();

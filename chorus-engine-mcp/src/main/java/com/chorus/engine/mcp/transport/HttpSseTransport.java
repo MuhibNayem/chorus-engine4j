@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,9 +43,9 @@ public final class HttpSseTransport implements McpTransport {
     }
 
     public HttpSseTransport(@NonNull URI endpoint, @NonNull HttpClient httpClient, @NonNull ObjectMapper mapper) {
-        this.endpoint = endpoint;
-        this.httpClient = httpClient;
-        this.mapper = mapper;
+        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+        this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
+        this.mapper = Objects.requireNonNull(mapper, "mapper");
     }
 
     @Override
@@ -58,6 +59,7 @@ public final class HttpSseTransport implements McpTransport {
 
     @Override
     public void send(@NonNull JsonRpcMessage message) {
+        Objects.requireNonNull(message, "message");
         if (closed.get()) {
             throw new IllegalStateException("Transport is closed");
         }

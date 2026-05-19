@@ -5,7 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EvalRunnerTest {
 
@@ -19,13 +20,13 @@ class EvalRunnerTest {
         EvalRunner runner = new EvalRunner();
         EvalReport report = runner.run(dataset, input -> input.equals("hello") ? "world" : "bar", new ExactMatchScorer());
 
-        assertEquals("test", report.datasetName());
-        assertEquals(2, report.totalCases());
-        assertEquals(2, report.passed());
-        assertEquals(1.0, report.passRate(), 0.001);
-        assertEquals(1.0, report.avgScore(), 0.001);
-        assertNotNull(report.duration());
-        assertEquals(2, report.results().size());
+        assertThat(report.datasetName()).isEqualTo("test");
+        assertThat(report.totalCases()).isEqualTo(2);
+        assertThat(report.passed()).isEqualTo(2);
+        assertThat(report.passRate()).isCloseTo(1.0, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(report.avgScore()).isCloseTo(1.0, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(report.duration()).isNotNull();
+        assertThat(report.results()).hasSize(2);
     }
 
     @Test
@@ -38,9 +39,9 @@ class EvalRunnerTest {
         EvalRunner runner = new EvalRunner();
         EvalReport report = runner.run(dataset, input -> "wrong", new ExactMatchScorer());
 
-        assertEquals(0, report.passed());
-        assertEquals(0.0, report.passRate(), 0.001);
-        assertEquals(0.0, report.avgScore(), 0.001);
+        assertThat(report.passed()).isEqualTo(0);
+        assertThat(report.passRate()).isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(report.avgScore()).isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.001));
     }
 
     @Test
@@ -54,9 +55,9 @@ class EvalRunnerTest {
             throw new RuntimeException("boom");
         }, new ExactMatchScorer());
 
-        assertEquals(1, report.totalCases());
-        assertEquals(0, report.passed());
-        assertTrue(report.results().get(0).actualOutput().contains("ERROR"));
+        assertThat(report.totalCases()).isEqualTo(1);
+        assertThat(report.passed()).isEqualTo(0);
+        assertThat(report.results().get(0).actualOutput()).contains("ERROR");
     }
 
     @Test
@@ -66,8 +67,73 @@ class EvalRunnerTest {
         EvalRunner runner = new EvalRunner();
         EvalReport report = runner.run(dataset, input -> input, new ExactMatchScorer());
 
-        assertEquals(0, report.totalCases());
-        assertEquals(0.0, report.passRate(), 0.001);
-        assertEquals(0.0, report.avgScore(), 0.001);
+        assertThat(report.totalCases()).isEqualTo(0);
+        assertThat(report.passRate()).isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(report.avgScore()).isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.001));
+    }
+
+    // --- Expanded tests ---
+
+    @Test
+    void nullDatasetRejection() {
+        EvalRunner runner = new EvalRunner();
+        assertThatThrownBy(() -> runner.run(null, input -> input, new ExactMatchScorer()))
+            .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void nullAgentRunnerRejection() {
+        EvalDataset dataset = EvalDataset.of("test", List.of(new EvalCase("1", "a", "b", Map.of())));
+        EvalRunner runner = new EvalRunner();
+        assertThatThrownBy(() -> runner.run(dataset, null, new ExactMatchScorer()))
+            .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void nullScorerRejection() {
+        EvalDataset dataset = EvalDataset.of("test", List.of(new EvalCase("1", "a", "b", Map.of())));
+        EvalRunner runner = new EvalRunner();
+        assertThatThrownBy(() -> runner.run(dataset, input -> input, null))
+            .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void scorerReturningNullResult() {
+        EvalDataset dataset = EvalDataset.of("test", List.of(
+            new EvalCase("1", "hello", "world", Map.of())
+        ));
+
+        EvalScorer nullScorer = (testCase, actualOutput) -> null;
+        EvalRunner runner = new EvalRunner();
+
+        assertThatThrownBy(() -> runner.run(dataset, input -> "world", nullScorer))
+            .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void agentRunnerReturningNull() {
+        EvalDataset dataset = EvalDataset.of("test", List.of(
+            new EvalCase("1", "hello", "world", Map.of())
+        ));
+
+        EvalRunner runner = new EvalRunner();
+        EvalReport report = runner.run(dataset, input -> null, new ExactMatchScorer());
+
+        assertThat(report.totalCases()).isEqualTo(1);
+        assertThat(report.passed()).isEqualTo(0);
+    }
+
+    @Test
+    void singleCaseDataset() {
+        EvalDataset dataset = EvalDataset.of("single", List.of(
+            new EvalCase("1", "hello", "world", Map.of())
+        ));
+
+        EvalRunner runner = new EvalRunner();
+        EvalReport report = runner.run(dataset, input -> "world", new ExactMatchScorer());
+
+        assertThat(report.totalCases()).isEqualTo(1);
+        assertThat(report.passed()).isEqualTo(1);
+        assertThat(report.passRate()).isCloseTo(1.0, org.assertj.core.data.Offset.offset(0.001));
     }
 }

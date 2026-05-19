@@ -1,0 +1,137 @@
+[
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$StreamToken",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$ThinkingStart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$ThinkingEnd",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$ToolCallStart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$ToolCallDone",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$ToolCallError",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$RoundStart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$RoundEnd",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$HitlRequested",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$HitlResolved",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$CheckpointSaved",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$CheckpointLoaded",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$CompactionTriggered",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$GuardrailTriggered",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$MemoryRecall",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$MemoryStore",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$Handoff",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$StreamStart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$StreamEnd",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$Done",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$Error",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$HitlDecision",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.event.AgentEvent$GuardrailAction",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.result.Result",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.result.Result$Ok",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.core.result.Result$Err",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

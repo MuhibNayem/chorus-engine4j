@@ -43,6 +43,8 @@ public final class HybridRetrievalEngine implements RetrievalEngine {
 
     @Override
     public @NonNull List<RetrievalResult> retrieve(@NonNull String query, @NonNull RetrieveOptions options) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(options, "options");
         EmbeddingClient.EmbedOptions embedOpts = new EmbeddingClient.EmbedOptions(
             embeddingClient.modelName(),
             EmbeddingClient.EmbedOptions.InputType.QUERY,

@@ -1,0 +1,52 @@
+[
+  {
+    "name": "com.chorus.engine.telemetry.event.ChorusEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.AgentStartEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.AgentEndEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.LlmCallEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.ToolCallEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.RagQueryEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.HandoffEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.GuardrailEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.CheckpointEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.telemetry.event.CircuitBreakerEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

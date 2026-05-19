@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -87,6 +88,10 @@ public final class AgentLoop {
         @NonNull List<ToolDefinition> tools,
         @NonNull CancellationToken cancellationToken
     ) {
+        Objects.requireNonNull(runId, "runId cannot be null");
+        Objects.requireNonNull(userInput, "userInput cannot be null");
+        Objects.requireNonNull(tools, "tools cannot be null");
+        Objects.requireNonNull(cancellationToken, "cancellationToken cannot be null");
         if (closed.get()) {
             return subscriber -> subscriber.onError(new IllegalStateException("AgentLoop is closed"));
         }
@@ -172,7 +177,7 @@ public final class AgentLoop {
                         new TokenCount(totalInputTokens.get(), totalOutputTokens.get(), "unknown"),
                         new TokenCount(maxTokens * 2, maxTokens, "unknown")
                     );
-                    if (r.isOk() && r.unwrap() != null) {
+                    if (r.isOk() && !r.unwrap().compactedHistory().isEmpty()) {
                         history.clear();
                         history.add(Message.system(systemPrompt));
                         history.addAll(r.unwrap().compactedHistory());
@@ -338,7 +343,7 @@ public final class AgentLoop {
 
                     String resultJson = result instanceof String s ? s : result.toString();
                     results.add(Message.tool(resultJson, tc.id()));
-                }, executor);
+                });
                 futures.add(future);
             }
 

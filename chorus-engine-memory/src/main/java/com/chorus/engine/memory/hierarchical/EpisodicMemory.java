@@ -30,13 +30,16 @@ public final class EpisodicMemory {
 
     public @NonNull String record(@NonNull Message message, @NonNull String eventType,
                                   @Nullable Map<String, Object> entities, @Nullable String outcome) {
+        Objects.requireNonNull(message, "message");
+        Objects.requireNonNull(eventType, "eventType");
+        Instant now = Instant.now();
         String id = UUID.randomUUID().toString();
         Episode ep = new Episode(id, message, eventType,
             entities != null ? Map.copyOf(entities) : Map.of(),
-            outcome, Instant.now(), 1);
+            outcome, now, 1);
         episodes.addLast(ep);
         byId.put(id, ep);
-        evictIfNeeded();
+        evictIfNeeded(now);
         return id;
     }
 
@@ -101,7 +104,11 @@ public final class EpisodicMemory {
     }
 
     private void evictIfNeeded() {
-        Instant cutoff = Instant.now().minusSeconds((long) retentionDays * 24 * 60 * 60);
+        evictIfNeeded(Instant.now());
+    }
+
+    private void evictIfNeeded(Instant referenceTime) {
+        Instant cutoff = referenceTime.minusSeconds((long) retentionDays * 24 * 60 * 60);
         episodes.removeIf(ep -> {
             if (ep.timestamp().isBefore(cutoff)) {
                 byId.remove(ep.id());

@@ -44,6 +44,8 @@ public final class SelfRagEvaluator {
     }
 
     public @NonNull SelfRagResult evaluateAndRefine(@NonNull String query, @NonNull List<RetrievalEngine.RetrievalResult> initialResults) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(initialResults, "initialResults");
         List<RetrievalEngine.RetrievalResult> currentResults = new ArrayList<>(initialResults);
         List<RefinementRound> rounds = new ArrayList<>();
         int totalTokens = 0;

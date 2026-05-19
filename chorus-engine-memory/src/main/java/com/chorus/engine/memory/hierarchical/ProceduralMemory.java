@@ -29,6 +29,7 @@ public final class ProceduralMemory {
 
     public void learn(@NonNull String procedureId, @NonNull String description,
                       @NonNull List<String> steps, @Nullable Map<String, Object> context) {
+        Objects.requireNonNull(description, "description");
         Procedure proc = new Procedure(
             procedureId, description, List.copyOf(steps),
             context != null ? Map.copyOf(context) : Map.of(),
@@ -87,7 +88,8 @@ public final class ProceduralMemory {
         if (procedures.size() > maxProcedures) {
             procedures.values().stream()
                 .min(Comparator.comparingInt(Procedure::invocationCount)
-                    .thenComparingDouble(Procedure::successRate))
+                    .thenComparingDouble(Procedure::successRate)
+                    .thenComparing(Procedure::createdAt))
                 .ifPresent(oldest -> procedures.remove(oldest.id()));
         }
     }

@@ -1,0 +1,21 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\Qtokenizers/cl100k_base.tiktoken\\E"
+      },
+      {
+        "pattern": "\\Qtokenizers/o200k_base.tiktoken\\E"
+      },
+      {
+        "pattern": "\\Qtokenizers/llama-3.tiktoken\\E"
+      },
+      {
+        "pattern": "\\Qtokenizers/deepseek.tiktoken\\E"
+      },
+      {
+        "pattern": "\\Qtokenizers/qwen.tiktoken\\E"
+      }
+    ]
+  }
+}

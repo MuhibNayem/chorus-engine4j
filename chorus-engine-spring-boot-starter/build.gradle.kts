@@ -20,8 +20,13 @@ dependencies {
     implementation(project(":chorus-engine-harness"))
     implementation(project(":chorus-engine-mcp"))
     implementation(project(":chorus-engine-a2a"))
+    implementation(project(":chorus-engine-telemetry"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.0")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.0")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:4.0.0")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test:4.0.0")
+    testImplementation("org.springframework.boot:spring-boot-starter-web:4.0.0")
 }

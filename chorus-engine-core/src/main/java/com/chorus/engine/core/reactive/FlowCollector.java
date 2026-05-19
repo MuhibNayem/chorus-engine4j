@@ -42,6 +42,9 @@ public final class FlowCollector {
         @NonNull Duration timeout,
         @Nullable CancellationToken token
     ) throws TimeoutException, InterruptedException {
+        if (token != null && token.isCancelled()) {
+            throw new InterruptedException("Cancelled");
+        }
         ListCollector<T> collector = new ListCollector<>();
         publisher.subscribe(collector);
         return collector.await(timeout, token);
@@ -56,6 +59,9 @@ public final class FlowCollector {
         @NonNull Duration timeout,
         @Nullable CancellationToken token
     ) throws TimeoutException, InterruptedException {
+        if (token != null && token.isCancelled()) {
+            throw new InterruptedException("Cancelled");
+        }
         LastCollector<T> collector = new LastCollector<>();
         publisher.subscribe(collector);
         return collector.await(timeout, token);

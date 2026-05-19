@@ -9,6 +9,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -40,6 +41,8 @@ public final class DenseVectorStage implements RetrievalStage {
 
     @Override
     public @NonNull CompletableFuture<List<Chunk>> retrieve(@NonNull String query, RetrievalEngine.@NonNull RetrieveOptions options) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(options, "options");
         return CompletableFuture.supplyAsync(() -> {
             EmbeddingClient.EmbedOptions embedOpts = new EmbeddingClient.EmbedOptions(
                 embeddingClient.modelName(),

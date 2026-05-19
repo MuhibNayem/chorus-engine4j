@@ -1,0 +1,6 @@
+[
+  {
+    "name": "com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
+    "allDeclaredConstructors": true
+  }
+]

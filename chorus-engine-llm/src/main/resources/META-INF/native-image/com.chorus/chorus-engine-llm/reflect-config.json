@@ -1,0 +1,37 @@
+[
+  {
+    "name": "com.chorus.engine.llm.StreamEvent",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.llm.StreamEvent$Token",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.llm.StreamEvent$ToolCallStart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.llm.StreamEvent$ToolCallDelta",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.llm.StreamEvent$ToolCallDone",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.llm.StreamEvent$Finish",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.llm.StreamEvent$Error",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

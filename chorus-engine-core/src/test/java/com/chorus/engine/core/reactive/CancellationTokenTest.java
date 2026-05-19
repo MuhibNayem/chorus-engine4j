@@ -76,4 +76,39 @@ class CancellationTokenTest {
         assertThatNoException().isThrownBy(() -> token.cancel("test"));
         assertThat(token.isCancelled()).isTrue();
     }
+
+    @Test
+    void reason_defaultBeforeCancel() {
+        CancellationToken token = CancellationToken.create();
+        assertThat(token.reason()).isEqualTo("cancelled");
+    }
+
+    @Test
+    void createLinked_withAlreadyCancelledParent() {
+        CancellationToken parent = CancellationToken.alreadyCancelled("parent stopped");
+        CancellationToken child = parent.createLinked();
+        assertThat(child.isCancelled()).isTrue();
+        assertThat(child.reason()).isEqualTo("parent stopped");
+    }
+
+    @Test
+    void multipleCallbacks_allFire() {
+        CancellationToken token = CancellationToken.create();
+        java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
+        token.onCancel(r -> counter.incrementAndGet());
+        token.onCancel(r -> counter.incrementAndGet());
+        token.onCancel(r -> counter.incrementAndGet());
+        token.cancel("go");
+        assertThat(counter.get()).isEqualTo(3);
+    }
+
+    @Test
+    void throwingCallback_doesNotBlockLaterCallbacks() {
+        CancellationToken token = CancellationToken.create();
+        java.util.concurrent.atomic.AtomicBoolean laterFired = new java.util.concurrent.atomic.AtomicBoolean(false);
+        token.onCancel(r -> { throw new RuntimeException("first"); });
+        token.onCancel(r -> laterFired.set(true));
+        token.cancel("go");
+        assertThat(laterFired.get()).isTrue();
+    }
 }

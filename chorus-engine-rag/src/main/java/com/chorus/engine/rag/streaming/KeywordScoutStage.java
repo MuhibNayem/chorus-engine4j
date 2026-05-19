@@ -7,6 +7,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -36,6 +37,8 @@ public final class KeywordScoutStage implements RetrievalStage {
 
     @Override
     public @NonNull CompletableFuture<List<Chunk>> retrieve(@NonNull String query, RetrievalEngine.@NonNull RetrieveOptions options) {
+        Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(options, "options");
         return CompletableFuture.supplyAsync(() ->
             keywordIndex.search(query, topK, options.filters()).stream()
                 .map(HybridRetrievalEngine.KeywordIndex.RetrievalResult::chunk)

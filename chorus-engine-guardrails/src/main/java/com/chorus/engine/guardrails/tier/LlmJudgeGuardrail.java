@@ -7,6 +7,7 @@ import org.jspecify.annotations.NonNull;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -52,6 +53,8 @@ public final class LlmJudgeGuardrail implements Guardrail {
 
     @Override
     public @NonNull GuardrailResult evaluate(@NonNull String input, @NonNull GuardrailContext context) {
+        Objects.requireNonNull(input, "input");
+        Objects.requireNonNull(context, "context");
         String cacheKey = hash(input);
         GuardrailResult cached = cache.get(cacheKey);
         if (cached != null) return cached;

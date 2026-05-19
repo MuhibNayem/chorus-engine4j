@@ -40,7 +40,7 @@ public interface Middleware {
         @NonNull TokenCount current,
         @NonNull TokenCount max
     ) {
-        return Result.ok(null); // null = no compaction
+        return Result.ok(new CompactionResult(List.of(), "")); // empty = no compaction
     }
 
     /**
@@ -98,7 +98,7 @@ public interface Middleware {
         @Nullable String assistantOutput,
         @NonNull Map<String, Object> context
     ) {
-        return Result.ok(null);
+        return new Result.Ok<>(null);
     }
 
     record MiddlewareError(@NonNull String code, @NonNull String message, boolean fatal) {}

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "com.chorus.engine.a2a.task.Part",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.a2a.task.Part$TextPart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.a2a.task.Part$FilePart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.chorus.engine.a2a.task.Part$DataPart",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

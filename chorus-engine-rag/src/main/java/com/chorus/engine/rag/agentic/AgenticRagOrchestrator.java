@@ -46,6 +46,7 @@ public final class AgenticRagOrchestrator {
     }
 
     public @NonNull AgenticResult execute(@NonNull String query) {
+        Objects.requireNonNull(query, "query");
         List<Message> history = new ArrayList<>();
         history.add(Message.system("""
             You are an intelligent research assistant. You have access to a document retrieval system.
