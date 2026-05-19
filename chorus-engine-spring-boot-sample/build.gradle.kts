@@ -1,8 +1,13 @@
 plugins {
     id("java")
+    id("application")
     id("org.springframework.boot")
     id("io.spring.dependency-management")
     id("org.graalvm.buildtools.native")
+}
+
+application {
+    mainClass.set("com.chorus.engine.sample.SampleApplication")
 }
 
 dependencies {
