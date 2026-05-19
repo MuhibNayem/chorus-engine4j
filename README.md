@@ -1,176 +1,209 @@
-# Chorus Engine for Java
+# Chorus Engine
 
-> **Enterprise-grade multi-agent orchestration framework for Java 25 + Spring Boot 4.0 + Spring AI 2.0**
+> Java-native agentic AI framework for production-grade multi-agent systems.
 
-## Overview
+[![Java CI](https://github.com/chorus-engine/chorus-engine/actions/workflows/java-ci.yml/badge.svg)](https://github.com/chorus-engine/chorus-engine/actions/workflows/java-ci.yml)
+[![Java 25](https://img.shields.io/badge/Java-25-blue.svg)](https://openjdk.org/projects/jdk/25/)
+[![Spring Boot 4.0](https://img.shields.io/badge/Spring%20Boot-4.0-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Chorus Engine Java is a headless, production-ready multi-agent orchestration runtime built on the latest Java and Spring ecosystem. It provides everything needed to build, deploy, and observe LLM-powered agents at scale.
+## What is Chorus Engine?
 
-## Technology Stack
+Chorus Engine is a **Java-native** framework for building agentic AI systems — autonomous agents that reason, plan, use tools, remember context, and collaborate. Built for the JVM, it brings the power of modern agentic AI to Java developers without requiring Python interop.
 
-| Component | Version | Notes |
-|-----------|---------|-------|
-| Java | 25 LTS | Scoped Values, Structured Concurrency, Stable Values |
-| Spring Boot | 4.0.0 | Virtual threads, declarative HTTP clients, Jackson 3 |
-| Spring AI | 2.0.0-M1 | GPT-5-mini default, Advisors API, MCP, structured output |
-| Project Reactor | 2024.0.0 | Reactive streaming foundation |
-| OpenTelemetry | 1.x | Native tracing and metrics |
+```java
+@Service
+public class MyAgentService {
+    private final AgentLoop agentLoop;
+    private final RAGPipeline rag;
+
+    public MyAgentService(AgentLoop agentLoop, RAGPipeline rag) {
+        this.agentLoop = agentLoop;
+        this.rag = rag;
+    }
+
+    public String ask(String question) {
+        return agentLoop.run(question, CancellationToken.never())
+            .collect(...);
+    }
+}
+```
+
+## Features
+
+| Feature | Status | Module |
+|---|---|---|
+| ReAct Agent Loop with parallel tool execution | ✅ | `agent` |
+| Human-in-the-Loop (HITL) approval gates | ✅ | `agent` |
+| Self-healing agent loop | ✅ | `agent` |
+| Deterministic DAG workflows with checkpointing | ✅ | `graph` |
+| Multi-agent swarms (handoff, consensus, supervisor, planner-executor) | ✅ | `swarm` |
+| Hybrid RAG (dense + keyword) | ✅ | `rag` |
+| Self-RAG / Corrective RAG / Agentic RAG | ✅ | `rag` |
+| Incremental RAG streaming | ✅ | `rag` |
+| Four-layer memory (short-term, long-term, episodic, procedural) | ✅ | `memory` |
+| Tiered guardrails with PII redaction | ✅ | `guardrails` |
+| Semantic skill routing | ✅ | `skills` |
+| Event-driven telemetry with OpenTelemetry | ✅ | `telemetry` |
+| MCP (Model Context Protocol) client/server | ✅ | `mcp` |
+| A2A (Agent-to-Agent) protocol | ✅ | `a2a` |
+| Evaluation framework with LLM-as-judge | ✅ | `evals` |
+| Spring Boot auto-configuration | ✅ | `spring-boot-starter` |
+| GraalVM native image support | ✅ | All modules |
+
+## Quick Start
+
+### With Spring Boot (Recommended)
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("com.chorus:chorus-engine-spring-boot-starter:0.1.0")
+}
+```
+
+```yaml
+# application.yml
+chorus:
+  enabled: true
+  llm:
+    api-key: ${OPENAI_API_KEY}
+    model: gpt-4o
+```
+
+```java
+@Service
+public class AgentService {
+    private final AgentLoop agentLoop;
+
+    public AgentService(AgentLoop agentLoop) {
+        this.agentLoop = agentLoop;
+    }
+
+    public String ask(String question) {
+        // Fully configured, ready to use
+        return agentLoop.run(question, CancellationToken.never())
+            .collect(...);
+    }
+}
+```
+
+### Without Spring Boot
+
+```java
+// Build everything programmatically
+HttpClient httpClient = HttpClient.newHttpClient();
+ObjectMapper mapper = new ObjectMapper();
+
+ProviderRegistry registry = ProviderRegistry.defaults(httpClient, mapper);
+LlmClient llm = registry.get("openai");
+
+ToolRegistry tools = new ToolRegistry();
+tools.register(new CalculatorTool());
+
+AgentLoop agent = new AgentLoop(llm, tools, new InMemoryEventBus(),
+    AgentLoopConfig.builder().maxRounds(10).build());
+
+agent.run("What is 2 + 2?", CancellationToken.never())
+    .subscribe(event -> { /* handle events */ });
+```
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Your Application                          │
-├─────────────────────────────────────────────────────────────┤
-│  chorus-engine-spring-boot-starter (Auto-Configuration)      │
-├─────────────────────────────────────────────────────────────┤
-│  Agent Loop │ StateGraph │ Swarm │ Harness │ Evals          │
-├─────────────────────────────────────────────────────────────┤
-│  HITL │ Guardrails │ Checkpoints │ Middleware │ Memory      │
-├─────────────────────────────────────────────────────────────┤
-│  Spring AI 2.0 (ChatClient, Advisors, MCP, Tools)           │
-├─────────────────────────────────────────────────────────────┤
-│  OpenAI │ Anthropic │ Gemini │ Bedrock │ Ollama │ Azure     │
+│                    Application Layer                         │
+│         (Spring Boot, CLI, or embedded)                      │
 └─────────────────────────────────────────────────────────────┘
-```
-
-## Features
-
-### Core Agent Loop
-- **ReAct pattern** with streaming async generators (Flux)
-- **Per-chunk stream timeout** and automatic retry with exponential backoff
-- **Zod-like structured output** validation with auto-correction
-- **30+ structured event types** for full observability
-
-### Middleware System (6 hooks)
-- `beforeRound` / `afterRound`
-- `extraSystemPrompt` / `extraTools`
-- `maybeCompact` (context window management)
-- `beforeTool` (cancel/substitute) / `afterTool`
-
-### Human-in-the-Loop (HITL)
-- Configurable timeout gates
-- Session-level approvals
-- Checkpoint-serializable for crash recovery
-
-### Checkpointing
-- JSON File (atomic tmp+rename)
-- PostgreSQL + JSONB
-- Durable event-sourced mode (sync/async/exit)
-- `recoverFromCrash()` reconstruction
-
-### StateGraph DAG
-- Reducer semantics: `lastValue`, `append`, `sum`, `setUnion`, `mapMerge`
-- Compile-time cycle detection (DFS)
-- Runtime infinite-loop detection (state fingerprinting)
-- **Java 25 Structured Concurrency** for parallel wave execution
-- Per-node and per-graph timeouts
-- Deadlock detection
-- `Send` objects for dynamic subgraph fan-out
-
-### Swarm Multi-Agent (4 paradigms)
-1. **Handoff** - Sequential agent transfer with context filtering
-2. **Graph/DAG** - Topological waves with `dependsOn`, parallel execution
-3. **Supervisor** - Central coordinator routes to specialists
-4. **Group Chat** - Round-robin debate with `vote`/`concatenate`/`first-success`
-
-### Circuit Breaker & Cost Control
-- Max consecutive same-agent (default 3)
-- Per-agent token budgets (default 50K)
-- Hard cost caps with `budget-exceeded` events
-- Auto-downgrade to cheaper models under budget pressure
-
-### Harness Semantic Routing
-- Embedding-based intent classification (~94% accuracy)
-- 7 task kinds: `answer_only`, `inspect_only`, `single_file_edit`, `multi_file_edit`, `debug`, `research`, `project_phase`
-- Regex fallback for low-confidence routing
-
-### Guardrails (3-tier defense)
-- **Tier 1 (Fast)**: Regex/keywords (<1ms)
-- **Tier 2 (ML)**: NER / embedding similarity (20-100ms)
-- **Tier 3 (LLM)**: LLM-as-judge policy evaluation (500ms-8s)
-- Adaptive thresholds from operator feedback
-
-### Telemetry
-- OpenTelemetry-native tracing
-- Span types: `agent.loop`, `agent.round`, `agent.tool_call`, `harness.worker`, `swarm.execution`, `swarm.wave`
-- Micrometer metrics: token usage, cost, latency, completion rates
-- Auto-redaction of API keys from spans
-
-### MCP Integration
-- Spring AI 2.0 MCP client/server starters
-- stdio, SSE, HTTP transports
-- Auto-discovery and health checks
-- Namespaced tools: `mcp__{server}__{tool}`
-
-### A2A Protocol
-- JSON-RPC 2.0 over HTTP
-- AgentCard discovery
-- Streaming SSE execution
-
-### Adaptive Skill Runtime
-- L0-L3 skill hierarchy (Primitives → Skills → Patterns → Metaskills)
-- Semantic indexing with hot-reload
-- Performance tracking with auto-curation (trusted/deprecated)
-
-## Quick Start
-
-```java
-@SpringBootApplication
-public class MyApp {
-
-    @Bean
-    public CommandLineRunner demo(ChatClient chatClient,
-                                  ToolRegistry tools,
-                                  HitlGate hitlGate) {
-        return args -> {
-            var config = AgentConfig.builder()
-                .runId(UUID.randomUUID().toString())
-                .systemPrompt("You are a senior Java engineer")
-                .model("gpt-5-mini")
-                .hitlEnabled(true)
-                .build();
-
-            var agent = new AgentLoop(chatClient, config,
-                List.of(new SummarizationMiddleware()),
-                checkpointer, hitlGate, guardrails, RetryPolicy.defaultPolicy());
-
-            agent.run("Refactor this class to use Java 25 features")
-                .subscribe(event -> System.out.println(event.type() + ": " + event));
-        };
-    }
-}
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│   Agent      │    │    Graph     │    │   Swarm      │
+│   (ReAct)    │    │   (DAG)      │    │ (Multi-Agent)│
+└──────────────┘    └──────────────┘    └──────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Shared Services Layer                           │
+│  LLM Client │ RAG │ Memory │ Tools │ Guardrails │ Telemetry │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Protocol Layer                                  │
+│              MCP Client/Server │ A2A Client/Server           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Modules
 
-| Module | Purpose |
-|--------|---------|
-| `chorus-engine-core` | Events, reactive streams, checkpointing, middleware |
-| `chorus-engine-agent` | ReAct loop, HITL, retry, memory |
-| `chorus-engine-graph` | StateGraph DAG, channels, REST server |
-| `chorus-engine-swarm` | Multi-agent orchestration, circuit breaker |
-| `chorus-engine-harness` | Semantic routing, workers, protocols |
-| `chorus-engine-llm` | Provider abstraction, Spring AI bridge |
-| `chorus-engine-tools` | Filesystem, shell, git, web search |
-| `chorus-engine-guardrails` | 3-tier defense, NER, redaction |
-| `chorus-engine-skills` | Registry, embedder, synthesizer |
-| `chorus-engine-telemetry` | OpenTelemetry + Micrometer |
-| `chorus-engine-mcp` | Model Context Protocol |
-| `chorus-engine-a2a` | Agent-to-Agent protocol |
-| `chorus-engine-evals` | Evaluation framework |
-| `chorus-engine-memory` | Short/long-term memory, compression |
-| `chorus-engine-spring-boot-starter` | Auto-configuration |
-| `chorus-engine-spring-boot-sample` | Example application |
+| Module | Description | Dependencies |
+|---|---|---|
+| [`chorus-engine-core`](chorus-engine-core/) | Foundation types: events, results, messages, cancellation, vector ops | None |
+| [`chorus-engine-tokenizer`](chorus-engine-tokenizer/) | Token counting for 50+ models | `core` |
+| [`chorus-engine-llm`](chorus-engine-llm/) | LLM clients, streaming, embeddings | `core`, `tokenizer` |
+| [`chorus-engine-agent`](chorus-engine-agent/) | ReAct agent loop, HITL, middleware | `core`, `llm` |
+| [`chorus-engine-graph`](chorus-engine-graph/) | DAG workflows, channels, checkpointing | `core`, `agent` |
+| [`chorus-engine-swarm`](chorus-engine-swarm/) | Multi-agent orchestration | `core`, `llm`, `agent`, `tools` |
+| [`chorus-engine-harness`](chorus-engine-harness/) | Evaluation harness, semantic routing | Multiple |
+| [`chorus-engine-tools`](chorus-engine-tools/) | Tool registry, schema generation | `core`, `llm` |
+| [`chorus-engine-guardrails`](chorus-engine-guardrails/) | Safety guardrails, PII redaction | `core`, `llm` |
+| [`chorus-engine-skills`](chorus-engine-skills/) | Semantic skill discovery and routing | Multiple |
+| [`chorus-engine-telemetry`](chorus-engine-telemetry/) | Metrics, cost tracking, OpenTelemetry | Multiple |
+| [`chorus-engine-mcp`](chorus-engine-mcp/) | MCP protocol client/server | `core`, `tools` |
+| [`chorus-engine-a2a`](chorus-engine-a2a/) | A2A protocol implementation | `core` |
+| [`chorus-engine-evals`](chorus-engine-evals/) | Evaluation framework | Multiple |
+| [`chorus-engine-memory`](chorus-engine-memory/) | Multi-layer memory system | `core`, `tokenizer`, `llm` |
+| [`chorus-engine-rag`](chorus-engine-rag/) | Advanced RAG pipelines | Multiple |
+| [`chorus-engine-spring-boot-starter`](chorus-engine-spring-boot-starter/) | Auto-configuration for Spring Boot | All modules |
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [User Guide](docs/GUIDE.md) | Comprehensive feature documentation with examples |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture and design principles |
+| [Harness](docs/HARNESS.md) | Evaluation harness deep-dive |
+| [Router](docs/ROUTER.md) | Semantic task routing internals |
+| [Maven Central Publishing](docs/MAVEN-CENTRAL-PUBLISHING.md) | Release process |
+| [GraalVM Native Analysis](docs/GRAALVM-NATIVE-ANALYSIS.md) | Native image compatibility |
+| [Contributing](CONTRIBUTING.md) | Build, test, and PR guidelines |
+| [Changelog](CHANGELOG.md) | Version history |
+
+## Requirements
+
+- Java 25
+- Gradle 9.1.0+
+- `--enable-preview` flag (for Structured Concurrency)
+- `--add-modules jdk.incubator.vector` (for SIMD vector operations)
 
 ## Building
 
 ```bash
-./gradlew build
+cd chorus-engine-java
+./gradlew test          # Run all 1,015 tests
+./gradlew compileJava   # Compile all modules
+./gradlew bootJar       # Build Spring Boot sample
 ```
 
-Requires **Java 25** and accepts preview features (Structured Concurrency, Stable Values).
+## GraalVM Native Image
+
+```bash
+./gradlew :chorus-engine-spring-boot-sample:nativeCompile
+```
+
+See [docs/GRAALVM-NATIVE-ANALYSIS.md](docs/GRAALVM-NATIVE-ANALYSIS.md) for details.
+
+## Why Java?
+
+- **Type safety** with records and sealed types
+- **Virtual threads** for massive concurrency
+- **GraalVM native images** for sub-100ms cold starts
+- **Enterprise integration** with existing Spring Boot microservices
+- **No Python dependency hell** — single JAR deployment
 
 ## License
 
-MIT
+Apache License 2.0
