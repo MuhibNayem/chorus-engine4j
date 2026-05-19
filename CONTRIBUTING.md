@@ -13,7 +13,7 @@ Thank you for your interest in contributing! This document covers build, test, a
 ### Clone and Build
 
 ```bash
-git clone https://github.com/chorus-engine/chorus-engine.git
+git clone https://github.com/MuhibNayem/chorus-engine4j.git
 cd chorus-engine/chorus-engine-java
 ./gradlew compileJava
 ```
@@ -113,5 +113,5 @@ chorus-engine-java/
 
 ## Questions?
 
-- Open an issue: https://github.com/chorus-engine/chorus-engine/issues
-- Start a discussion: https://github.com/chorus-engine/chorus-engine/discussions
+- Open an issue: https://github.com/MuhibNayem/chorus-engine4j/issues
+- Start a discussion: https://github.com/MuhibNayem/chorus-engine4j/discussions

@@ -29,7 +29,7 @@ The `spring-boot-starter` module provides zero-configuration integration with Sp
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.chorus:chorus-engine-spring-boot-starter:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-spring-boot-starter:0.1.0")
 }
 ```
 

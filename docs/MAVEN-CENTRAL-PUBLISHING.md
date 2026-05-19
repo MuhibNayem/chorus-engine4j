@@ -2,7 +2,7 @@
 
 > **Date:** 2026-05-19
 > **Researcher:** Kimi Code CLI
-> **Target:** `com.chorus:chorus-engine-*` artifacts on Maven Central
+> **Target:** `io.github.muhibnayem:chorus-engine-*` artifacts on Maven Central
 
 ---
 
@@ -42,8 +42,8 @@ Chorus Engine uses group ID **`com.chorus`**. You must prove ownership:
 | Namespace Pattern | Proof Required |
 |---|---|
 | `com.chorus` | TXT record in DNS for `chorus.com` domain, OR GitHub repo at `github.com/chorus/...` |
-| `io.github.chorus-engine` | Ownership of `github.com/chorus-engine` organization |
-| `com.github.chorus-engine` | Ownership of `github.com/chorus-engine` organization |
+| `io.github.chorus-engine` | Ownership of `github.com/MuhibNayem` organization |
+| `com.github.chorus-engine` | Ownership of `github.com/MuhibNayem` organization |
 
 **If you don't own `chorus.com`**, register under `io.github.chorus-engine` instead. This is instant — Sonatype verifies it by checking your GitHub profile.
 
@@ -162,7 +162,7 @@ mavenPublishing {
         name.set("Chorus Engine — ${project.name}")
         description.set("Java-native agentic AI framework")
         inceptionYear.set("2025")
-        url.set("https://github.com/chorus-engine/chorus-engine")
+        url.set("https://github.com/MuhibNayem/chorus-engine4j")
 
         licenses {
             license {
@@ -180,8 +180,8 @@ mavenPublishing {
         }
 
         scm {
-            url.set("https://github.com/chorus-engine/chorus-engine")
-            connection.set("scm:git:git://github.com/chorus-engine/chorus-engine.git")
+            url.set("https://github.com/MuhibNayem/chorus-engine4j")
+            connection.set("scm:git:git://github.com/MuhibNayem/chorus-engine4j.git")
             developerConnection.set("scm:git:ssh://git@github.com:chorus-engine/chorus-engine.git")
         }
     }
@@ -398,9 +398,9 @@ dependencies {
 Users then declare:
 ```kotlin
 dependencies {
-    implementation(platform("com.chorus:chorus-engine-bom:0.1.0"))
-    implementation("com.chorus:chorus-engine-core")
-    implementation("com.chorus:chorus-engine-llm")
+    implementation(platform("io.github.muhibnayem:chorus-engine-bom:0.1.0"))
+    implementation("io.github.muhibnayem:chorus-engine-core")
+    implementation("io.github.muhibnayem:chorus-engine-llm")
     // No version needed!
 }
 ```

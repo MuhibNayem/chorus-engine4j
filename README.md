@@ -2,7 +2,7 @@
 
 > Java-native agentic AI framework for production-grade multi-agent systems.
 
-[![Java CI](https://github.com/chorus-engine/chorus-engine/actions/workflows/java-ci.yml/badge.svg)](https://github.com/chorus-engine/chorus-engine/actions/workflows/java-ci.yml)
+[![Java CI](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/java-ci.yml/badge.svg)](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/java-ci.yml)
 [![Java 25](https://img.shields.io/badge/Java-25-blue.svg)](https://openjdk.org/projects/jdk/25/)
 [![Spring Boot 4.0](https://img.shields.io/badge/Spring%20Boot-4.0-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -58,7 +58,7 @@ public class MyAgentService {
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.chorus:chorus-engine-spring-boot-starter:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-spring-boot-starter:0.1.0")
 }
 ```
 

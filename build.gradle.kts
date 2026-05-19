@@ -4,10 +4,11 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7" apply false
     id("org.springframework.boot") version "4.0.0" apply false
     id("org.graalvm.buildtools.native") version "0.10.6" apply false
+    id("com.vanniktech.maven.publish") version "0.33.0" apply false
 }
 
 allprojects {
-    group = "com.chorus"
+    group = "io.github.muhibnayem"
     version = "0.1.0-SNAPSHOT"
 
     repositories {

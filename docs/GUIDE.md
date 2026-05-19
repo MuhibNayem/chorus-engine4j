@@ -93,10 +93,10 @@ Chorus Engine is intentionally Java-only. The JVM offers:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.chorus:chorus-engine-core:0.1.0")
-    implementation("com.chorus:chorus-engine-llm:0.1.0")
-    implementation("com.chorus:chorus-engine-agent:0.1.0")
-    implementation("com.chorus:chorus-engine-tools:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-core:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-llm:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-agent:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-tools:0.1.0")
 }
 ```
 
@@ -157,7 +157,7 @@ Add the starter and configure in `application.yml`:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.chorus:chorus-engine-spring-boot-starter:0.1.0")
+    implementation("io.github.muhibnayem:chorus-engine-spring-boot-starter:0.1.0")
 }
 ```
 
@@ -1205,7 +1205,7 @@ chorus-engine-core
 
 ## Appendix C: Getting Help
 
-- **Issues:** https://github.com/chorus-engine/chorus-engine/issues
-- **Discussions:** https://github.com/chorus-engine/chorus-engine/discussions
+- **Issues:** https://github.com/MuhibNayem/chorus-engine4j/issues
+- **Discussions:** https://github.com/MuhibNayem/chorus-engine4j/discussions
 - **Documentation:** See `docs/` directory in this repository
 - **Module Docs:** See each module's `README.md`
