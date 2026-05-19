@@ -1,8 +1,8 @@
 plugins {
     java
     `java-library`
-    id("io.spring.dependency-management") version "1.1.7"
-    id("org.springframework.boot") version "3.4.0" apply false
+    id("io.spring.dependency-management") version "1.1.7" apply false
+    id("org.springframework.boot") version "4.0.0" apply false
 }
 
 allprojects {
@@ -11,46 +11,43 @@ allprojects {
 
     repositories {
         mavenCentral()
-        maven { url = uri("https://repo.spring.io/milestone") }
     }
 }
 
 subprojects {
     apply(plugin = "java-library")
-    apply(plugin = "io.spring.dependency-management")
 
     java {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(21))
+            languageVersion.set(JavaLanguageVersion.of(25))
         }
         withSourcesJar()
         withJavadocJar()
     }
 
-    dependencyManagement {
-        imports {
-            mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.0")
-            mavenBom("io.projectreactor:reactor-bom:2024.0.0")
-        }
-    }
-
     dependencies {
-        compileOnly("org.projectlombok:lombok")
-        annotationProcessor("org.projectlombok:lombok")
+        // Null safety annotations only — zero runtime dependency
+        compileOnly("org.jspecify:jspecify:1.0.0")
 
-        testImplementation("org.springframework.boot:spring-boot-starter-test")
-        testImplementation("io.projectreactor:reactor-test")
+        // Testing
+        testImplementation(platform("org.junit:junit-bom:5.11.0"))
+        testImplementation("org.junit.jupiter:junit-jupiter")
+        testImplementation("org.assertj:assertj-core:3.26.3")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 
     tasks.withType<JavaCompile> {
-        options.compilerArgs.addAll(listOf("-parameters", "--enable-preview"))
-        options.release.set(21)
+        options.compilerArgs.addAll(listOf(
+            "-parameters",
+            "--enable-preview"
+        ))
+        options.release.set(25)
     }
 
     tasks.withType<Test> {
         useJUnitPlatform()
-        jvmArgs("--enable-preview")
+        jvmArgs("--enable-preview", "--add-modules", "jdk.incubator.vector")
+        maxHeapSize = "2g"
     }
 
     tasks.withType<Javadoc> {

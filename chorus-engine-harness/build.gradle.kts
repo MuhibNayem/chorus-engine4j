@@ -1,13 +1,12 @@
 dependencies {
-    api(project(":chorus-engine-core"))
-    api(project(":chorus-engine-agent"))
-    api(project(":chorus-engine-llm"))
-    api(project(":chorus-engine-skills"))
-
-    api("io.projectreactor:reactor-core")
-
-    implementation("io.micrometer:micrometer-core")
-    implementation("org.apache.commons:commons-lang3")
-
-    testImplementation("io.projectreactor:reactor-test")
+    implementation(project(":chorus-engine-core"))
+    implementation(project(":chorus-engine-llm"))
+    implementation(project(":chorus-engine-agent"))
+    implementation(project(":chorus-engine-swarm"))
+    implementation(project(":chorus-engine-skills"))
+    implementation(project(":chorus-engine-tools"))
+    implementation(project(":chorus-engine-memory"))
+    implementation(project(":chorus-engine-telemetry"))
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.0")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.0")
 }

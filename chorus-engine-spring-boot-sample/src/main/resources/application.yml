@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: chorus-engine-sample
+
+chorus:
+  llm:
+    provider: openai
+    base-url: https://api.openai.com/v1
+    api-key: ${OPENAI_API_KEY:}
+    model: gpt-4o
+    temperature: 0.7
+    max-tokens: 4096
+  rag:
+    enabled: true
+    vector-store-type: memory
+    chunk-size: 512
+    chunk-overlap: 50
+    max-context-tokens: 2048
+    embedding-model: text-embedding-3-small
+    embedding-dimensions: 1536
+  agent:
+    enabled: true
+    agent-id: chorus-agent
+    system-prompt: "You are a helpful assistant."
+    max-rounds: 10
+    hitl-timeout-minutes: 5
+  swarm:
+    enabled: true
+    max-turns: 10
+    timeout-per-agent-seconds: 60
+    enable-circuit-breakers: true
+    enable-cost-routing: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.chorus.engine: DEBUG

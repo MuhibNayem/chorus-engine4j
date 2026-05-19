@@ -1,18 +1,17 @@
 dependencies {
-    api(project(":chorus-engine-core"))
+    implementation(project(":chorus-engine-core"))
+    implementation(project(":chorus-engine-llm"))
+    implementation(project(":chorus-engine-agent"))
+    implementation(project(":chorus-engine-tools"))
+    implementation(project(":chorus-engine-rag"))
+    implementation(project(":chorus-engine-guardrails"))
+    implementation(project(":chorus-engine-swarm"))
 
-    api("io.opentelemetry:opentelemetry-api")
-    api("io.opentelemetry:opentelemetry-sdk")
-    api("io.opentelemetry:opentelemetry-sdk-trace")
-    api("io.opentelemetry:opentelemetry-exporter-otlp")
-    api("io.opentelemetry:opentelemetry-extension-trace-propagators")
-    api("io.projectreactor:reactor-core")
+    // OpenTelemetry is optional at runtime
+    compileOnly("io.opentelemetry:opentelemetry-api:1.43.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk:1.43.0")
+    compileOnly("io.opentelemetry:opentelemetry-exporter-otlp:1.43.0")
 
-    implementation("io.opentelemetry:opentelemetry-sdk-metrics")
-    implementation("io.opentelemetry:opentelemetry-sdk-logs")
-    implementation("io.opentelemetry.semconv:opentelemetry-semconv:1.28.0-alpha")
-    implementation("io.micrometer:micrometer-registry-prometheus")
-    implementation("io.micrometer:micrometer-tracing-bridge-otel")
-
-    testImplementation("io.projectreactor:reactor-test")
+    // SLF4J optional for structured logging integration
+    compileOnly("org.slf4j:slf4j-api:2.0.16")
 }

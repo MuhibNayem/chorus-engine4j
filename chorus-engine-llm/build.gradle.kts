@@ -1,14 +1,8 @@
 dependencies {
-    api(project(":chorus-engine-core"))
+    implementation(project(":chorus-engine-core"))
+    implementation(project(":chorus-engine-tokenizer"))
 
-    api("io.projectreactor:reactor-core")
-    api("org.springframework:spring-webflux")
-    api("com.fasterxml.jackson.core:jackson-databind")
-
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
-    implementation("io.micrometer:micrometer-core")
-    implementation("org.apache.commons:commons-lang3")
-
-    testImplementation("io.projectreactor:reactor-test")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    // JSON parsing — only external dep in LLM module
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.0")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.18.0")
 }

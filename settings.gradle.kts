@@ -2,6 +2,7 @@ rootProject.name = "chorus-engine-java"
 
 include(
     "chorus-engine-core",
+    "chorus-engine-tokenizer",
     "chorus-engine-agent",
     "chorus-engine-graph",
     "chorus-engine-swarm",
@@ -15,6 +16,7 @@ include(
     "chorus-engine-a2a",
     "chorus-engine-evals",
     "chorus-engine-memory",
+    "chorus-engine-rag",
     "chorus-engine-spring-boot-starter",
     "chorus-engine-spring-boot-sample"
 )
