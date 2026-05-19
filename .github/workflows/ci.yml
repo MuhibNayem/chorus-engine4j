@@ -95,24 +95,43 @@ jobs:
         run: |
           BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-engine-sample"
           if [ ! -f "$BINARY" ]; then
-            echo "Native binary not found"
+            echo "ERROR: Native binary not found at $BINARY"
+            echo "Build artifacts present:"
+            find chorus-engine-spring-boot-sample/build/native -type f 2>/dev/null || echo "  (none)"
             exit 1
           fi
-          # Run binary and capture startup time
-          START=$(date +%s%N)
-          timeout 15s "$BINARY" --server.port=0 &
+          chmod +x "$BINARY"
+          PORT=18080
+          START_NS=$(date +%s%N)
+          "$BINARY" --server.port=$PORT > /tmp/chorus-sample.log 2>&1 &
           PID=$!
-          # Wait for Spring Boot actuator to be ready (check logs)
-          sleep 3
-          END=$(date +%s%N)
-          ELAPSED_MS=$(( (END - START) / 1000000 ))
+          # Poll actuator health — starter includes spring-boot-starter-actuator
+          READY=false
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/actuator/health" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            if ! kill -0 $PID 2>/dev/null; then
+              echo "ERROR: Application exited unexpectedly"
+              cat /tmp/chorus-sample.log
+              exit 1
+            fi
+            sleep 0.25
+          done
+          END_NS=$(date +%s%N)
+          ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
+          kill $PID 2>/dev/null || true
+          wait $PID 2>/dev/null || true
+          if [ "$READY" = "false" ]; then
+            echo "ERROR: Application did not become healthy within 15 seconds"
+            cat /tmp/chorus-sample.log
+            exit 1
+          fi
           echo "Startup time: ${ELAPSED_MS}ms"
-          kill $PID || true
-          wait $PID || true
-          # Fail if > 100ms (allow some CI variance, target is < 100ms on bare metal)
+          # Target is <100ms on bare metal; CI runners are slower — warn only
           if [ "$ELAPSED_MS" -gt 500 ]; then
-            echo "⚠ Startup time ${ELAPSED_MS}ms exceeds 500ms threshold (CI environment is slower than bare metal)"
-            # Do not fail in CI — bare metal target is <100ms
+            echo "Warning: startup ${ELAPSED_MS}ms exceeds 500ms CI threshold (bare-metal target: <100ms)"
           fi
 
       - name: Upload native binary

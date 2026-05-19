@@ -19,8 +19,13 @@ graalvmNative {
     binaries {
         named("main") {
             imageName.set("chorus-engine-sample")
-            buildArgs.add("--enable-preview")
-            buildArgs.add("--no-fallback")
+            sharedLibrary.set(false)
+            buildArgs.addAll(
+                "--enable-preview",
+                "--no-fallback",
+                "-H:+ReportExceptionStackTraces"
+            )
         }
     }
+    testSupport.set(false)
 }
