@@ -1,0 +1,107 @@
+name: GraalVM Native Image Validation
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
+    branches: [ '**' ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-validate:
+    name: Validate Native Compilation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up GraalVM JDK 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-native-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-native-
+
+      - name: Run Spring Boot AOT Processing
+        run: ./gradlew :chorus-engine-spring-boot-sample:processAot --no-daemon
+
+      - name: Compile Native Binary
+        run: ./gradlew :chorus-engine-spring-boot-sample:nativeCompile --no-daemon
+
+      - name: Verify Native Executable & Startup Health
+        run: |
+          BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-engine-sample"
+          if [ ! -f "$BINARY" ]; then
+            echo "ERROR: Native binary not found at $BINARY"
+            exit 1
+          fi
+          chmod +x "$BINARY"
+          PORT=18080
+          START_NS=$(date +%s%N)
+          "$BINARY" --server.port=$PORT > /tmp/chorus-sample.log 2>&1 &
+          PID=$!
+          
+          # Poll actuator health check
+          READY=false
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:${PORT}/actuator/health" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            if ! kill -0 $PID 2>/dev/null; then
+              echo "ERROR: Native process exited prematurely"
+              cat /tmp/chorus-sample.log
+              exit 1
+            fi
+            sleep 0.25
+          done
+          
+          END_NS=$(date +%s%N)
+          ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
+          kill $PID 2>/dev/null || true
+          wait $PID 2>/dev/null || true
+          
+          if [ "$READY" = "false" ]; then
+            echo "ERROR: Application health endpoint did not respond within 15 seconds"
+            cat /tmp/chorus-sample.log
+            exit 1
+          fi
+          
+          echo "✅ Native binary started successfully in ${ELAPSED_MS}ms"
+          if [ "$ELAPSED_MS" -gt 500 ]; then
+            echo "::warning::Startup time (${ELAPSED_MS}ms) exceeds the 500ms CI threshold (Target is <100ms on bare metal)"
+          fi
+
+      - name: Upload Verified Native Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: chorus-engine-native-linux-amd64
+          path: chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-engine-sample
+          if-no-files-found: error
