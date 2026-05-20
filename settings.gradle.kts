@@ -18,5 +18,6 @@ include(
     "chorus-engine-memory",
     "chorus-engine-rag",
     "chorus-engine-spring-boot-starter",
-    "chorus-engine-spring-boot-sample"
+    "chorus-engine-spring-boot-sample",
+    "chorus-engine-bom"
 )

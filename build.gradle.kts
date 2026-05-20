@@ -9,7 +9,15 @@ plugins {
 
 allprojects {
     group = "io.github.muhibnayem"
-    version = "0.1.0-SNAPSHOT"
+    version = providers.gradleProperty("releaseVersion")
+        .orElse(
+            providers.exec {
+                commandLine("git", "describe", "--tags", "--always")
+                isIgnoreExitValue = true
+            }.standardOutput.asText.map { it.trim().removePrefix("v") }
+        )
+        .orElse("0.1.0-SNAPSHOT")
+        .get()
 
     repositories {
         mavenCentral()
@@ -18,8 +26,9 @@ allprojects {
 
 subprojects {
     // The sample is an application demo, not a published library module.
-    // Skip all framework build conventions for it.
-    if (name == "chorus-engine-spring-boot-sample") return@subprojects
+    // The BOM is a java-platform, not a java-library.
+    // Skip framework build conventions for both.
+    if (name == "chorus-engine-spring-boot-sample" || name == "chorus-engine-bom") return@subprojects
 
     apply(plugin = "java-library")
 
