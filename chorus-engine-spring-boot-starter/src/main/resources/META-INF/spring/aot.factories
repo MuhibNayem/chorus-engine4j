@@ -1,0 +1,9 @@
+org.springframework.beans.factory.aot.BeanFactoryInitializationAotProcessor=\
+com.chorus.engine.springboot.agent.AgentAnnotationAotProcessor,\
+com.chorus.engine.springboot.swarm.SwarmAnnotationAotProcessor,\
+com.chorus.engine.springboot.graph.GraphAnnotationAotProcessor,\
+com.chorus.engine.springboot.mcp.McpAnnotationAotProcessor,\
+com.chorus.engine.springboot.guardrail.GuardrailAnnotationAotProcessor,\
+com.chorus.engine.springboot.skill.SkillAnnotationAotProcessor,\
+com.chorus.engine.springboot.telemetry.EventHandlerAnnotationAotProcessor,\
+com.chorus.engine.springboot.tool.StandaloneToolAnnotationAotProcessor

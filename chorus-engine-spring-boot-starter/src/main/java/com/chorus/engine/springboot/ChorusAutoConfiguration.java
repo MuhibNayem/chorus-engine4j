@@ -56,6 +56,14 @@ import com.chorus.engine.telemetry.otel.OpenTelemetryBridge;
 import com.chorus.engine.telemetry.otel.OtelConfig;
 import com.chorus.engine.telemetry.provenance.ProvenanceTracker;
 import com.chorus.engine.tools.ToolRegistry;
+import com.chorus.engine.springboot.agent.AgentAnnotationProcessor;
+import com.chorus.engine.springboot.swarm.SwarmAnnotationProcessor;
+import com.chorus.engine.springboot.graph.GraphAnnotationProcessor;
+import com.chorus.engine.springboot.mcp.McpAnnotationProcessor;
+import com.chorus.engine.springboot.guardrail.GuardrailAnnotationProcessor;
+import com.chorus.engine.springboot.skill.SkillAnnotationProcessor;
+import com.chorus.engine.springboot.telemetry.EventHandlerAnnotationProcessor;
+import com.chorus.engine.springboot.tool.StandaloneToolAnnotationProcessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -349,6 +357,63 @@ public class ChorusAutoConfiguration {
     public ToolRegistry toolRegistry() {
         return new ToolRegistry();
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static AgentAnnotationProcessor agentAnnotationProcessor() {
+        return new AgentAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static SwarmAnnotationProcessor swarmAnnotationProcessor() {
+        return new SwarmAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static GraphAnnotationProcessor graphAnnotationProcessor() {
+        return new GraphAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static McpAnnotationProcessor mcpAnnotationProcessor() {
+        return new McpAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static GuardrailAnnotationProcessor guardrailAnnotationProcessor() {
+        return new GuardrailAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static SkillAnnotationProcessor skillAnnotationProcessor() {
+        return new SkillAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static EventHandlerAnnotationProcessor eventHandlerAnnotationProcessor() {
+        return new EventHandlerAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static StandaloneToolAnnotationProcessor standaloneToolAnnotationProcessor() {
+        return new StandaloneToolAnnotationProcessor();
+    }
+
 
     // ================================================================
     // SWARM LAYER
