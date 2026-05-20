@@ -103,7 +103,7 @@ class VectorStoreFactoryTest {
     void unknownTypeThrows() {
         IllegalArgumentException ex = assertThrows(
             IllegalArgumentException.class,
-            () -> VectorStoreFactory.create("weaviate", Map.of())
+            () -> VectorStoreFactory.create("nonexistent_db", Map.of())
         );
         assertTrue(ex.getMessage().contains("Unknown"));
     }

@@ -17,6 +17,11 @@ import java.util.Objects;
  *   <li>{@code qdrant} — {@link QdrantVectorStore}</li>
  *   <li>{@code pinecone} — {@link PineconeVectorStore}</li>
  *   <li>{@code milvus} — {@link MilvusVectorStore}</li>
+ *   <li>{@code weaviate} — {@link WeaviateVectorStore}</li>
+ *   <li>{@code elasticsearch} — {@link ElasticsearchVectorStore}</li>
+ *   <li>{@code opensearch} — {@link OpenSearchVectorStore}</li>
+ *   <li>{@code chroma} — {@link ChromaVectorStore}</li>
+ *   <li>{@code mongoatlas} — {@link MongoAtlasVectorStore}</li>
  * </ul>
  *
  * <p>Configuration keys per type:
@@ -27,6 +32,11 @@ import java.util.Objects;
  *   <tr><td>qdrant</td><td>baseUrl, collectionName</td><td>apiKey</td></tr>
  *   <tr><td>pinecone</td><td>apiKey, indexHost</td><td>namespace</td></tr>
  *   <tr><td>milvus</td><td>baseUrl, collectionName</td><td>token</td></tr>
+ *   <tr><td>weaviate</td><td>baseUrl, className</td><td>apiKey</td></tr>
+ *   <tr><td>elasticsearch</td><td>baseUrl, indexName</td><td>apiKey, username, password, dimensions (default: 1536)</td></tr>
+ *   <tr><td>opensearch</td><td>baseUrl, indexName</td><td>username, password, dimensions (default: 1536)</td></tr>
+ *   <tr><td>chroma</td><td>baseUrl, collectionName</td><td>tenant, database, token</td></tr>
+ *   <tr><td>mongoatlas</td><td>dataApiUrl, apiKey, database, collection</td><td>indexName (default: vector_index)</td></tr>
  * </table>
  */
 public final class VectorStoreFactory {
@@ -36,7 +46,8 @@ public final class VectorStoreFactory {
     /**
      * Creates a {@link VectorStore} from the given type and configuration map.
      *
-     * @param type   one of: memory, pgvector, qdrant, pinecone, milvus
+     * @param type   one of: memory, pgvector, qdrant, pinecone, milvus, weaviate,
+     *               elasticsearch, opensearch, chroma, mongoatlas
      * @param config configuration map; type-specific keys documented above
      * @return a configured VectorStore instance
      * @throws IllegalArgumentException if the type is unknown or required config is missing
@@ -51,6 +62,11 @@ public final class VectorStoreFactory {
             case "qdrant" -> createQdrant(config);
             case "pinecone" -> createPinecone(config);
             case "milvus" -> createMilvus(config);
+            case "weaviate" -> createWeaviate(config);
+            case "elasticsearch", "elastic" -> createElasticsearch(config);
+            case "opensearch" -> createOpenSearch(config);
+            case "chroma", "chromadb" -> createChroma(config);
+            case "mongoatlas", "mongodb-atlas" -> createMongoAtlas(config);
             default -> throw new IllegalArgumentException("Unknown vector store type: " + type);
         };
     }
@@ -85,6 +101,60 @@ public final class VectorStoreFactory {
         String collectionName = requireString(config, "collectionName", "milvus");
         String token = getString(config, "token", null);
         return new MilvusVectorStore(baseUrl, collectionName, token);
+    }
+
+    private static @NonNull VectorStore createWeaviate(@NonNull Map<String, Object> config) {
+        String baseUrl = requireString(config, "baseUrl", "weaviate");
+        String className = requireString(config, "className", "weaviate");
+        String apiKey = getString(config, "apiKey", null);
+        return new WeaviateVectorStore(baseUrl, className, apiKey);
+    }
+
+    private static @NonNull VectorStore createElasticsearch(@NonNull Map<String, Object> config) {
+        String baseUrl = requireString(config, "baseUrl", "elasticsearch");
+        String indexName = requireString(config, "indexName", "elasticsearch");
+        String apiKey = getString(config, "apiKey", null);
+        String username = getString(config, "username", null);
+        String password = getString(config, "password", null);
+        int dimensions = getInt(config, "dimensions", 1536);
+        return new ElasticsearchVectorStore(baseUrl, indexName, apiKey, username, password, dimensions,
+            java.net.http.HttpClient.newBuilder()
+                .version(java.net.http.HttpClient.Version.HTTP_2)
+                .connectTimeout(java.time.Duration.ofSeconds(10))
+                .build(),
+            new com.fasterxml.jackson.databind.ObjectMapper());
+    }
+
+    private static @NonNull VectorStore createOpenSearch(@NonNull Map<String, Object> config) {
+        String baseUrl = requireString(config, "baseUrl", "opensearch");
+        String indexName = requireString(config, "indexName", "opensearch");
+        String username = getString(config, "username", null);
+        String password = getString(config, "password", null);
+        int dimensions = getInt(config, "dimensions", 1536);
+        return new OpenSearchVectorStore(baseUrl, indexName, username, password, dimensions);
+    }
+
+    private static @NonNull VectorStore createChroma(@NonNull Map<String, Object> config) {
+        String baseUrl = requireString(config, "baseUrl", "chroma");
+        String collectionName = requireString(config, "collectionName", "chroma");
+        String tenant = getString(config, "tenant", "default_tenant");
+        String database = getString(config, "database", "default_database");
+        String token = getString(config, "token", null);
+        return new ChromaVectorStore(baseUrl, collectionName, tenant, database, token,
+            java.net.http.HttpClient.newBuilder()
+                .version(java.net.http.HttpClient.Version.HTTP_2)
+                .connectTimeout(java.time.Duration.ofSeconds(10))
+                .build(),
+            new com.fasterxml.jackson.databind.ObjectMapper());
+    }
+
+    private static @NonNull VectorStore createMongoAtlas(@NonNull Map<String, Object> config) {
+        String dataApiUrl = requireString(config, "dataApiUrl", "mongoatlas");
+        String apiKey = requireString(config, "apiKey", "mongoatlas");
+        String database = requireString(config, "database", "mongoatlas");
+        String collection = requireString(config, "collection", "mongoatlas");
+        String indexName = getString(config, "indexName", "vector_index");
+        return new MongoAtlasVectorStore(dataApiUrl, apiKey, database, collection, indexName);
     }
 
     private static @NonNull String requireString(@NonNull Map<String, Object> config, @NonNull String key, @NonNull String type) {
