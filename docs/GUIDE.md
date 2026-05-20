@@ -1189,7 +1189,40 @@ To prevent runtime failures due to dynamic classloading or heavy reflection, the
 
 This ensures that the final native executable starts in milliseconds with minimal memory footprint and zero reflection-based crashes.
 
+### 12.6 Local Development & Diagnostics (Mock LLM & Visualizer)
+
+To ensure a top-tier developer experience (DX), Chorus Engine includes native support for running and debugging your workflows entirely offline.
+
+#### 12.6.1 Local Mock LLM Provider
+Avoid configuring API keys or incurring cloud costs during local integration testing by switching to the `mock` LLM provider:
+
+```yaml
+chorus:
+  llm:
+    provider: mock
+    mock:
+      inter-token-delay-ms: 10
+      scripts:
+        - trigger: "*hello*"
+          response: "Hi! How can I assist you with Chorus Engine today?"
+        - trigger: "search"
+          tool-name: "search_web"
+          tool-arguments:
+            results: ["Chorus Engine is a JVM-native multi-agent framework."]
+```
+
+This starts a local `MockLlmClient` that parses triggers (using simple case-insensitive substring matching, with `*` as a catch-all fallback) and simulates streaming response events (tokens, tool call declarations) with custom delays.
+
+#### 12.6.2 Dev-Mode Graph Visualizer (Mermaid.js)
+When running your Spring Boot application locally under the `dev`, `local`, or `default` Spring profiles, Chorus automatically enables the Dev-Mode Graph Visualizer.
+
+*   **Endpoint**: `/chorus/visualizer`
+*   **Aesthetics**: A dark glassmorphism layout rendering live interactive node charts.
+*   **Mermaid integration**: Translates compiled `@GraphWorkflow` structures directly to Mermaid.js syntax.
+*   **Security**: For safety, this endpoint is **restricted to development profiles** and is structurally omitted in `prod` environments.
+
 ---
+
 
 ## 13. Production Checklist
 
@@ -1264,7 +1297,8 @@ This ensures that the final native executable starts in milliseconds with minima
 ```yaml
 chorus:
   llm:
-    api-key: ${OPENAI_API_KEY}        # Required
+    provider: openai                  # openai, anthropic, gemini, vllm, mock
+    api-key: ${OPENAI_API_KEY}        # Required for cloud providers
     base-url: https://api.openai.com/v1
     model: gpt-4o
     temperature: 0.7
@@ -1275,7 +1309,13 @@ chorus:
     retry-base-delay-ms: 1000
     circuit-breaker-failure-threshold: 5
     circuit-breaker-reset-timeout-seconds: 30
+    mock:
+      inter-token-delay-ms: 20
+      scripts:
+        - trigger: "*"
+          response: "Mock LLM response content"
 ```
+
 
 ### 14.3 RAG Properties
 

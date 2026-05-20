@@ -104,6 +104,14 @@ if (recovered.isPresent()) {
 }
 ```
 
+## Dev-Mode Graph Visualizer
+
+When using Spring Boot starter, you can visualize your `@GraphWorkflow` setups locally in your browser:
+- **Web UI Endpoint**: `/chorus/visualizer`
+- **Aesthetic**: Premium dark glassmorphic interface
+- **Renderer**: Dynamic translation of graph definitions (entry points, finish points, nodes, linear edges, router edges) to Mermaid JS syntax.
+- **Access Profile**: Exposed under `dev`, `local`, and `default` Spring profiles. Structurally disabled in `prod` profiles for production security.
+
 ## Dependencies
 
 - `chorus-engine-core`
@@ -112,3 +120,4 @@ if (recovered.isPresent()) {
 ## Thread Safety
 
 `StateGraph` is immutable after `build()`. Each `invoke()` is independent. Nodes should be pure functions — side effects break determinism.
+

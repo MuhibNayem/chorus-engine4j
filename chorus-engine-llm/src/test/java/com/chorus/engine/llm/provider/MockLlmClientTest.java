@@ -234,14 +234,12 @@ class MockLlmClientTest {
     // ── Helpers ───────────────────────────────────────────────────────
 
     private static ChatRequest userMessage(String content) {
-        return new ChatRequest(
-            List.of(Message.user(content)),
-            "mock-model",
-            0.7,
-            1024,
-            List.of(),
-            Map.of()
-        );
+        return ChatRequest.builder()
+            .model("mock-model")
+            .messages(List.of(Message.user(content)))
+            .temperature(0.7)
+            .maxTokens(1024)
+            .build();
     }
 
     private static List<StreamEvent> collectEvents(MockLlmClient client, ChatRequest request)
@@ -250,7 +248,7 @@ class MockLlmClientTest {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Throwable> error = new AtomicReference<>();
 
-        client.stream(request, CancellationToken.noop()).subscribe(new Flow.Subscriber<>() {
+        client.stream(request, CancellationToken.create()).subscribe(new Flow.Subscriber<StreamEvent>() {
             private Flow.Subscription subscription;
 
             @Override public void onSubscribe(Flow.Subscription s) {

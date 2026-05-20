@@ -30,6 +30,7 @@ The `llm` module is the gateway to every large language model provider. It norma
 | Anthropic | `AnthropicProvider` | ✅ | ✅ |
 | Google Gemini | `GeminiProvider` | ✅ | ✅ |
 | vLLM / Ollama | `VllmChatProvider` | ✅ | ✅ |
+| Local Mock LLM | `MockLlmClient` | ✅ | ✅ |
 
 ## Usage Example
 
@@ -68,6 +69,24 @@ client.stream(request, CancellationToken.never()).subscribe(new Flow.Subscriber<
 });
 ```
 
+## Mock LLM Client
+
+For local offline development and testing, you can use `MockLlmClient`. It allows setting up trigger-response pairs, supporting tool calls, and simulating streaming token outputs with configurable latency.
+
+```java
+import com.chorus.engine.llm.provider.MockLlmClient;
+
+MockLlmClient mockClient = MockLlmClient.builder()
+    .interTokenDelayMs(10)
+    // Add text response trigger
+    .script("hello", "Hello, I am a mock agent. How can I help you today?")
+    // Add tool call trigger
+    .toolScript("calc", "calc_tool", Map.of("a", 2, "b", 3))
+    .build();
+
+// Now use mockClient as you would any LlmClient
+```
+
 ## Dependencies
 
 - `chorus-engine-core`
@@ -77,3 +96,4 @@ client.stream(request, CancellationToken.never()).subscribe(new Flow.Subscriber<
 ## Thread Safety
 
 `LlmClient` implementations are thread-safe and can be shared. `ProviderRegistry` is immutable after construction.
+

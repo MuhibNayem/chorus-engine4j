@@ -149,3 +149,27 @@ All 17 Chorus Engine modules + Spring Boot Web + Spring Boot Actuator + Jackson.
 ## Thread Safety
 
 All auto-configured beans are thread-safe and intended to be singletons.
+
+## Local Development Tools
+
+### Offline Mock LLM Provider
+Configure a local mock LLM provider for zero-configuration, zero-cost development:
+```yaml
+chorus:
+  llm:
+    provider: mock
+    mock:
+      inter-token-delay-ms: 10
+      scripts:
+        - trigger: "*"
+          response: "Standard mock response"
+```
+
+### Dev-Mode Graph Visualizer
+When running in `dev`, `local`, or `default` Spring profiles, access the interactive dark glassmorphic workflow visualizer:
+*   **Web UI URL**: `http://localhost:8080/chorus/visualizer`
+*   **Endpoints**:
+    *   `GET /chorus/visualizer` - Serves interactive HTML client
+    *   `GET /chorus/visualizer/api/graphs` - List of registered graphs as JSON
+    *   `GET /chorus/visualizer/api/graphs/{beanName}/mermaid` - Mermaid JS code for a graph
+    *   `GET /chorus/visualizer/api/graphs/mermaid/all` - Combined Mermaid JS code for all graphs
