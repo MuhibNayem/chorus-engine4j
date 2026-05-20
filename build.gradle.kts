@@ -66,6 +66,7 @@ subprojects {
     tasks.withType<Javadoc> {
         options.encoding = "UTF-8"
         (options as StandardJavadocDocletOptions).apply {
+            addBooleanOption("-enable-preview", true)
             addStringOption("-add-modules", "jdk.incubator.vector")
             addStringOption("source", "25")
         }
