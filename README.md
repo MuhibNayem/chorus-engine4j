@@ -1,11 +1,26 @@
+<div align="center">
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="96" height="96" role="img" aria-label="Chorus Engine logo">
+  <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="url(#g1)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+  <path d="M16 9 L22 12.5 L22 19.5 L16 23 L10 19.5 L10 12.5 Z" fill="rgba(255,255,255,0.95)"/>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+</svg>
+
 # Chorus Engine
 
-> Java-native agentic AI framework for production-grade multi-agent systems.
+**Java-native agentic AI framework for production-grade multi-agent systems.**
 
 [![Java CI](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/java-ci.yml/badge.svg)](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/java-ci.yml)
 [![Java 25](https://img.shields.io/badge/Java-25-blue.svg)](https://openjdk.org/projects/jdk/25/)
 [![Spring Boot 4.0](https://img.shields.io/badge/Spring%20Boot-4.0-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+</div>
 
 ## What is Chorus Engine?
 

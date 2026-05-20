@@ -108,6 +108,7 @@ public class ChorusProperties {
         private int readTimeoutSeconds = 120;
         private int maxRetries = 3;
         private boolean circuitBreakerEnabled = true;
+        private Mock mock = new Mock();
 
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -131,6 +132,41 @@ public class ChorusProperties {
         public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
         public boolean isCircuitBreakerEnabled() { return circuitBreakerEnabled; }
         public void setCircuitBreakerEnabled(boolean circuitBreakerEnabled) { this.circuitBreakerEnabled = circuitBreakerEnabled; }
+        public Mock getMock() { return mock; }
+        public void setMock(Mock mock) { this.mock = mock; }
+
+        /**
+         * Configuration for the mock LLM provider ({@code chorus.llm.provider=mock}).
+         * Allows zero-config local development with no API keys.
+         */
+        public static class Mock {
+            private int interTokenDelayMs = 20;
+            private List<ScriptConfig> scripts = new java.util.ArrayList<>(List.of(new ScriptConfig()));
+
+            public int getInterTokenDelayMs() { return interTokenDelayMs; }
+            public void setInterTokenDelayMs(int interTokenDelayMs) { this.interTokenDelayMs = interTokenDelayMs; }
+            public List<ScriptConfig> getScripts() { return scripts; }
+            public void setScripts(List<ScriptConfig> scripts) { this.scripts = scripts; }
+
+            /** A single response script configurable from YAML. */
+            public static class ScriptConfig {
+                private String trigger = "*";
+                private String response = "I am the Chorus Mock LLM. Configure chorus.llm.mock.scripts to customise responses.";
+                private String toolName;
+                private Map<String, Object> toolArguments = Map.of();
+
+                public String getTrigger() { return trigger; }
+                public void setTrigger(String trigger) { this.trigger = trigger; }
+                public String getResponse() { return response; }
+                public void setResponse(String response) { this.response = response; }
+                public String getToolName() { return toolName; }
+                public void setToolName(String toolName) { this.toolName = toolName; }
+                public Map<String, Object> getToolArguments() { return toolArguments; }
+                public void setToolArguments(Map<String, Object> toolArguments) {
+                    this.toolArguments = toolArguments != null ? Map.copyOf(toolArguments) : Map.of();
+                }
+            }
+        }
     }
 
     public static class Rag {

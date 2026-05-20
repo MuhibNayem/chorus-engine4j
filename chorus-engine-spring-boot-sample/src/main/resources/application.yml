@@ -225,3 +225,34 @@ management:
 logging:
   level:
     com.chorus.engine: DEBUG
+
+---
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║  DEV PROFILE  — zero-config local development, no API keys needed   ║
+# ║  Activate with: --spring.profiles.active=dev                        ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+chorus:
+  llm:
+    provider: mock
+    model: mock-1
+    mock:
+      inter-token-delay-ms: 15
+      scripts:
+        - trigger: "*"
+          response: "Hello from the Chorus Mock LLM! I am responding to your message in dev mode. No API key required."
+        - trigger: "summarize"
+          response: "Here is your mock summary: the document discusses key points about artificial intelligence and its applications."
+        - trigger: "code"
+          response: "```java\npublic class Hello {\n    public static void main(String[] args) {\n        System.out.println(\"Hello from Chorus Mock!\");\n    }\n}\n```"
+
+  graph:
+    enabled: true
+    checkpointing-enabled: true
+    checkpoint-type: memory
+
+  # Visualizer is auto-enabled on dev/default profiles at /chorus/visualizer

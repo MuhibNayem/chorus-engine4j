@@ -56,9 +56,12 @@ import com.chorus.engine.telemetry.otel.OpenTelemetryBridge;
 import com.chorus.engine.telemetry.otel.OtelConfig;
 import com.chorus.engine.telemetry.provenance.ProvenanceTracker;
 import com.chorus.engine.tools.ToolRegistry;
+import com.chorus.engine.llm.provider.MockLlmClient;
 import com.chorus.engine.springboot.agent.AgentAnnotationProcessor;
 import com.chorus.engine.springboot.swarm.SwarmAnnotationProcessor;
 import com.chorus.engine.springboot.graph.GraphAnnotationProcessor;
+import com.chorus.engine.springboot.graph.GraphDescriptorRegistry;
+import com.chorus.engine.springboot.graph.GraphMermaidRenderer;
 import com.chorus.engine.springboot.mcp.McpAnnotationProcessor;
 import com.chorus.engine.springboot.guardrail.GuardrailAnnotationProcessor;
 import com.chorus.engine.springboot.skill.SkillAnnotationProcessor;
@@ -182,6 +185,33 @@ public class ChorusAutoConfiguration {
         ChorusProperties.Llm llm = props.getLlm();
         providerRegistry.registerOpenAi(llm.getProvider(), llm.getBaseUrl(), llm.getApiKey(), null);
         return providerRegistry.get(llm.getProvider());
+    }
+
+    /**
+     * Zero-config mock LLM provider for local development and integration testing.
+     * Activated exclusively when {@code chorus.llm.provider=mock}.
+     * No API key is required. The existing real-provider bean is NOT created.
+     */
+    @Configuration
+    @ConditionalOnProperty(prefix = "chorus.llm", name = "provider", havingValue = "mock")
+    static class MockLlmConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(LlmClient.class)
+        public LlmClient llmClient(ChorusProperties props) {
+            ChorusProperties.Llm.Mock mockProps = props.getLlm().getMock();
+            java.time.Duration delay = java.time.Duration.ofMillis(mockProps.getInterTokenDelayMs());
+            List<MockLlmClient.ResponseScript> scripts = mockProps.getScripts().stream()
+                .map(s -> new MockLlmClient.ResponseScript(
+                    s.getTrigger(),
+                    s.getResponse(),
+                    s.getToolName(),
+                    s.getToolArguments(),
+                    delay
+                ))
+                .toList();
+            return new MockLlmClient(scripts, delay);
+        }
     }
 
     @Bean
@@ -464,6 +494,31 @@ public class ChorusAutoConfiguration {
     @ConditionalOnMissingBean
     public SkillRouter skillRouter() {
         return new SkillRouter();
+    }
+
+    // ================================================================
+    // GRAPH DESCRIPTOR REGISTRY + VISUALIZER (always-on in non-prod)
+    // ================================================================
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GraphDescriptorRegistry graphDescriptorRegistry() {
+        return new GraphDescriptorRegistry();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GraphMermaidRenderer graphMermaidRenderer() {
+        return new GraphMermaidRenderer();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GraphVisualizerController graphVisualizerController(
+        GraphDescriptorRegistry graphDescriptorRegistry,
+        GraphMermaidRenderer graphMermaidRenderer
+    ) {
+        return new GraphVisualizerController(graphDescriptorRegistry, graphMermaidRenderer);
     }
 
     // ================================================================

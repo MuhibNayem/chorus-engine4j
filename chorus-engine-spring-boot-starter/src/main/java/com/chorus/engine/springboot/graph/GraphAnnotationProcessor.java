@@ -5,6 +5,7 @@ import com.chorus.engine.annotation.GraphWorkflow;
 import com.chorus.engine.graph.state.CompiledGraph;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
@@ -15,19 +16,33 @@ import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 
 /**
- * Scans for {@link GraphWorkflow} classes, and registers a CompiledGraph bean via GraphWorkflowFactoryBean.
+ * Scans for {@link GraphWorkflow} classes and performs two responsibilities:
+ * <ol>
+ *   <li>Registers a {@link CompiledGraph} Spring bean via {@link GraphWorkflowFactoryBean}
+ *       during {@code postProcessBeanDefinitionRegistry} (early phase — bean class only,
+ *       no instantiation).</li>
+ *   <li>Populates the {@link GraphDescriptorRegistry} during
+ *       {@code afterSingletonsInstantiated} (safe phase — all properties bound,
+ *       all singletons available), enabling the dev-mode graph visualizer.</li>
+ * </ol>
+ *
+ * <p>Implementing {@link SmartInitializingSingleton} for the registry population ensures
+ * AOT compatibility and avoids early-bean-instantiation hazards.
  */
 @Order(Ordered.LOWEST_PRECEDENCE - 80)
-public class GraphAnnotationProcessor implements BeanDefinitionRegistryPostProcessor {
+public class GraphAnnotationProcessor
+    implements BeanDefinitionRegistryPostProcessor, SmartInitializingSingleton {
+
+    private ConfigurableListableBeanFactory beanFactory;
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
-        if (!(registry instanceof ConfigurableListableBeanFactory beanFactory)) {
+        if (!(registry instanceof ConfigurableListableBeanFactory clbf)) {
             return;
         }
         for (String beanName : registry.getBeanDefinitionNames()) {
             BeanDefinition bd = registry.getBeanDefinition(beanName);
-            Class<?> beanClass = resolveBeanClass(bd, beanFactory);
+            Class<?> beanClass = resolveBeanClass(bd, clbf);
             if (beanClass == null) continue;
 
             GraphWorkflow wf = AnnotationUtils.findAnnotation(beanClass, GraphWorkflow.class);
@@ -48,7 +63,36 @@ public class GraphAnnotationProcessor implements BeanDefinitionRegistryPostProce
 
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        // no-op
+        this.beanFactory = beanFactory;
+    }
+
+    /**
+     * Populates {@link GraphDescriptorRegistry} after all singletons are instantiated.
+     * This is safe for AOT and deferred until after configuration properties are bound.
+     */
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (beanFactory == null) return;
+        if (!beanFactory.containsBean("graphDescriptorRegistry")) return;
+
+        GraphDescriptorRegistry descriptorRegistry =
+            beanFactory.getBean("graphDescriptorRegistry", GraphDescriptorRegistry.class);
+
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+            Class<?> beanClass = resolveBeanClass(bd, beanFactory);
+            if (beanClass == null) continue;
+
+            GraphWorkflow wf = AnnotationUtils.findAnnotation(beanClass, GraphWorkflow.class);
+            if (wf == null) continue;
+
+            try {
+                GraphDescriptor descriptor = GraphDescriptor.from(beanName, beanClass);
+                descriptorRegistry.register(beanName, descriptor);
+            } catch (Exception e) {
+                // Log but do not crash startup — visualizer is a dev tool, not load-bearing
+            }
+        }
     }
 
     private Class<?> resolveBeanClass(BeanDefinition bd, ConfigurableListableBeanFactory beanFactory) {
@@ -62,7 +106,7 @@ public class GraphAnnotationProcessor implements BeanDefinitionRegistryPostProce
             }
         }
         // Strategy 2: resolvable type (@Bean method return types)
-        org.springframework.core.ResolvableType resolvableType = bd.getResolvableType();
+        ResolvableType resolvableType = bd.getResolvableType();
         if (resolvableType != ResolvableType.NONE) {
             Class<?> resolved = resolvableType.resolve();
             if (resolved != null) {

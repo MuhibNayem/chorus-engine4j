@@ -78,6 +78,34 @@ public final class ProviderRegistry implements AutoCloseable {
         ));
     }
 
+    /**
+     * Registers a {@link MockLlmClient} — a zero-config, scriptable local LLM provider
+     * for development and integration testing. No API key or network access required.
+     *
+     * @param name    provider alias (e.g. {@code "mock"})
+     * @param scripts ordered response scripts; first-match wins, {@code "*"} is wildcard
+     */
+    public void registerMock(
+        @NonNull String name,
+        java.util.@NonNull List<MockLlmClient.ResponseScript> scripts
+    ) {
+        providers.put(name, new MockLlmClient(scripts, java.time.Duration.ofMillis(20)));
+    }
+
+    /**
+     * Registers a {@link MockLlmClient} with a single wildcard script returning the given text.
+     * Convenience method for the simplest zero-config local setup.
+     *
+     * @param name     provider alias (e.g. {@code "mock"})
+     * @param response fixed response text
+     */
+    public void registerMockDefault(@NonNull String name, @NonNull String response) {
+        providers.put(name, new MockLlmClient(
+            java.util.List.of(MockLlmClient.ResponseScript.text(response)),
+            java.time.Duration.ofMillis(20)
+        ));
+    }
+
     public void registerCustom(@NonNull String name, @NonNull LlmClient client) {
         providers.put(name, client);
     }
