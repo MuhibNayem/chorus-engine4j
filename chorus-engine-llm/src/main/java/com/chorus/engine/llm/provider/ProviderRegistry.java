@@ -82,28 +82,28 @@ public final class ProviderRegistry implements AutoCloseable {
         providers.put(name, client);
     }
 
-    public static @NonNull LlmClient anthropic(@NonNull String apiKey) {
+    public static @NonNull LlmClient anthropic(@NonNull String apiKey, @NonNull ObjectMapper objectMapper) {
         HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .version(HttpClient.Version.HTTP_2)
             .build();
-        return new AnthropicProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, new ObjectMapper(), CircuitBreaker.defaults());
+        return new AnthropicProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, objectMapper, CircuitBreaker.defaults());
     }
 
-    public static @NonNull LlmClient gemini(@NonNull String apiKey) {
+    public static @NonNull LlmClient gemini(@NonNull String apiKey, @NonNull ObjectMapper objectMapper) {
         HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .version(HttpClient.Version.HTTP_2)
             .build();
-        return new GeminiProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, new ObjectMapper(), CircuitBreaker.defaults());
+        return new GeminiProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, objectMapper, CircuitBreaker.defaults());
     }
 
-    public static @NonNull LlmClient vllm(@NonNull String baseUrl, @Nullable String apiKey) {
+    public static @NonNull LlmClient vllm(@NonNull String baseUrl, @Nullable String apiKey, @NonNull ObjectMapper objectMapper) {
         HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .version(HttpClient.Version.HTTP_2)
             .build();
-        return new VllmChatProvider(baseUrl, apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, new ObjectMapper(), CircuitBreaker.defaults());
+        return new VllmChatProvider(baseUrl, apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, objectMapper, CircuitBreaker.defaults());
     }
 
     public @NonNull LlmClient get(@NonNull String name) {

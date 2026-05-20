@@ -235,8 +235,12 @@ public final class AgentLoop {
                 AtomicInteger roundOutputTokens = new AtomicInteger(0);
 
                 CompletableFuture<Void> streamFuture = new CompletableFuture<>();
+                AtomicReference<Flow.Subscription> streamSubscription = new AtomicReference<>();
                 llmClient.stream(request, cancellationToken).subscribe(new Flow.Subscriber<>() {
-                    @Override public void onSubscribe(Flow.Subscription s) { s.request(Long.MAX_VALUE); }
+                    @Override public void onSubscribe(Flow.Subscription s) {
+                        streamSubscription.set(s);
+                        s.request(Long.MAX_VALUE);
+                    }
                     @Override public void onNext(StreamEvent event) {
                         switch (event) {
                             case StreamEvent.Token t -> {
@@ -270,9 +274,13 @@ public final class AgentLoop {
                 try {
                     streamFuture.get(5, TimeUnit.MINUTES);
                 } catch (TimeoutException e) {
+                    Flow.Subscription sub = streamSubscription.get();
+                    if (sub != null) sub.cancel();
                     emit(subscriber, new AgentEvent.Error(runId, Instant.now(), "TIMEOUT", "LLM stream timed out", null, false));
                     break;
                 } catch (Exception e) {
+                    Flow.Subscription sub = streamSubscription.get();
+                    if (sub != null) sub.cancel();
                     emit(subscriber, new AgentEvent.Error(runId, Instant.now(), "STREAM_ERROR", e.getMessage(), null, true));
                     break;
                 }

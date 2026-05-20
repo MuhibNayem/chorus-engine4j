@@ -82,6 +82,7 @@ public final class GenerationController {
 
         java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
         AtomicReference<Boolean> completedNormally = new AtomicReference<>(false);
+        AtomicReference<Throwable> streamError = new AtomicReference<>();
 
         llmClient.stream(request, token).subscribe(new Flow.Subscriber<>() {
             @Override public void onSubscribe(Flow.Subscription s) { s.request(Long.MAX_VALUE); }
@@ -104,6 +105,7 @@ public final class GenerationController {
             @Override public void onError(Throwable t) {
                 finishReason.set("error: " + t.getMessage());
                 latency.set(Duration.between(start, Instant.now()));
+                streamError.set(t);
                 latch.countDown();
             }
 
@@ -127,6 +129,14 @@ public final class GenerationController {
                 prompt.length() / 4, tokensEmitted.get(),
                 latency.get() != null ? latency.get().toMillis() : 0,
                 finishReason.get() != null ? finishReason.get() : "unknown"));
+        }
+
+        if (!success && streamError.get() != null && !token.isCancelled()) {
+            Throwable t = streamError.get();
+            eventSink.accept(new RagStreamEvent.GenerationFailed(
+                Instant.now(), generationId,
+                t.getClass().getSimpleName(),
+                t.getMessage() != null ? t.getMessage() : "Unknown error"));
         }
 
         return success && !token.isCancelled();

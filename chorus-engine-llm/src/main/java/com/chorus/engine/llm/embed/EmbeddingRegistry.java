@@ -48,4 +48,13 @@ public final class EmbeddingRegistry {
     public @NonNull Map<String, EmbeddingClient> all() {
         return Map.copyOf(clients);
     }
+
+    public void close() {
+        for (EmbeddingClient client : clients.values()) {
+            if (client instanceof AutoCloseable ac) {
+                try { ac.close(); } catch (Exception ignored) {}
+            }
+        }
+        clients.clear();
+    }
 }

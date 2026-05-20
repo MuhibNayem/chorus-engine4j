@@ -47,7 +47,8 @@ public final class HierarchicalMemoryManager {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final int hotEpisodeThreshold;
     private final double procedureSuccessThreshold;
-    private final Set<String> consolidatedEpisodeIds = ConcurrentHashMap.newKeySet();
+    private final int maxConsolidatedIds;
+    private final Map<String, Boolean> consolidatedEpisodeIds;
 
     public HierarchicalMemoryManager(
         @NonNull ShortTermMemory working,
@@ -55,7 +56,7 @@ public final class HierarchicalMemoryManager {
         @NonNull LongTermMemory semantic,
         @NonNull ProceduralMemory procedural
     ) {
-        this(working, episodic, semantic, procedural, 3, 0.7);
+        this(working, episodic, semantic, procedural, 3, 0.7, 10_000);
     }
 
     public HierarchicalMemoryManager(
@@ -66,12 +67,31 @@ public final class HierarchicalMemoryManager {
         int hotEpisodeThreshold,
         double procedureSuccessThreshold
     ) {
+        this(working, episodic, semantic, procedural, hotEpisodeThreshold, procedureSuccessThreshold, 10_000);
+    }
+
+    public HierarchicalMemoryManager(
+        @NonNull ShortTermMemory working,
+        @NonNull EpisodicMemory episodic,
+        @NonNull LongTermMemory semantic,
+        @NonNull ProceduralMemory procedural,
+        int hotEpisodeThreshold,
+        double procedureSuccessThreshold,
+        int maxConsolidatedIds
+    ) {
         this.working = working;
         this.episodic = episodic;
         this.semantic = semantic;
         this.procedural = procedural;
         this.hotEpisodeThreshold = hotEpisodeThreshold;
         this.procedureSuccessThreshold = procedureSuccessThreshold;
+        this.maxConsolidatedIds = maxConsolidatedIds;
+        this.consolidatedEpisodeIds = Collections.synchronizedMap(new LinkedHashMap<>() {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                return size() > maxConsolidatedIds;
+            }
+        });
         this.consolidationExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "memory-consolidation");
             t.setDaemon(true);
@@ -201,7 +221,7 @@ public final class HierarchicalMemoryManager {
             // Promote hot episodes to semantic memory
             List<EpisodicMemory.Episode> hot = episodic.findHotEpisodes(hotEpisodeThreshold);
             for (EpisodicMemory.Episode ep : hot) {
-                if (consolidatedEpisodeIds.add(ep.id())) {
+                if (consolidatedEpisodeIds.put(ep.id(), Boolean.TRUE) == null) {
                     String key = "consolidated-" + ep.id();
                     semantic.store(ep.message(), key, Map.of(
                         "source", "episodic_consolidation",

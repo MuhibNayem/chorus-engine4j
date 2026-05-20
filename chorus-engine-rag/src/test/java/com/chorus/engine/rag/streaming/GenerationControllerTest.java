@@ -57,7 +57,26 @@ class GenerationControllerTest {
         assertFalse(completed, "Should not complete when cancelled");
     }
 
-    // ---- Stub LLM client ----
+    @Test
+    void emitsGenerationFailedOnStreamError() {
+        GenerationController ctrl = new GenerationController(
+            "gen-4", new ErrorLlmClient(new RuntimeException("LLM exploded")), "model", 0.3, 100);
+
+        List<RagStreamEvent> events = new ArrayList<>();
+        boolean completed = ctrl.start("Q", "Ctx", CancellationToken.create(), events::add);
+
+        assertFalse(completed, "Should not complete on stream error");
+        assertTrue(events.stream().anyMatch(e -> e instanceof RagStreamEvent.GenerationFailed),
+            "Should emit GenerationFailed");
+        RagStreamEvent.GenerationFailed failed = events.stream()
+            .filter(e -> e instanceof RagStreamEvent.GenerationFailed)
+            .map(e -> (RagStreamEvent.GenerationFailed) e)
+            .findFirst().orElseThrow();
+        assertEquals("RuntimeException", failed.errorType());
+        assertEquals("LLM exploded", failed.errorMessage());
+    }
+
+    // ---- Stub LLM clients ----
 
     static class SlowTokenLlmClient implements LlmClient {
         private final int tokenCount;
@@ -87,5 +106,28 @@ class GenerationControllerTest {
         }
         @Override public HealthStatus health() { return HealthStatus.HEALTHY; }
         @Override public String providerName() { return "stub-slow"; }
+    }
+
+    static class ErrorLlmClient implements LlmClient {
+        private final Throwable error;
+
+        ErrorLlmClient(Throwable error) { this.error = error; }
+
+        @Override
+        public Flow.Publisher<StreamEvent> stream(ChatRequest request, CancellationToken cancellationToken) {
+            return subscriber -> {
+                subscriber.onSubscribe(new Flow.Subscription() {
+                    @Override public void request(long n) {}
+                    @Override public void cancel() {}
+                });
+                subscriber.onError(error);
+            };
+        }
+
+        @Override public ChatResponse complete(ChatRequest request, CancellationToken cancellationToken) {
+            throw new RuntimeException(error);
+        }
+        @Override public HealthStatus health() { return HealthStatus.UNAVAILABLE; }
+        @Override public String providerName() { return "stub-error"; }
     }
 }

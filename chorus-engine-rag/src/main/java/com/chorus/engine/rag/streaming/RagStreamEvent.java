@@ -77,6 +77,16 @@ public sealed interface RagStreamEvent {
     ) implements RagStreamEvent {}
 
     /**
+     * Generation failed due to an LLM stream error.
+     */
+    record GenerationFailed(
+        @NonNull Instant timestamp,
+        @NonNull String generationId,
+        @NonNull String errorType,
+        @NonNull String errorMessage
+    ) implements RagStreamEvent {}
+
+    /**
      * Generation completed successfully.
      */
     record GenerationCompleted(

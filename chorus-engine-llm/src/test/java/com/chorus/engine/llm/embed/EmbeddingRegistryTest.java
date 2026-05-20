@@ -108,6 +108,15 @@ class EmbeddingRegistryTest {
             .isInstanceOf(NullPointerException.class);
     }
 
+    @Test
+    void close_closesAutoCloseableClients() {
+        FakeAutoCloseableClient client = new FakeAutoCloseableClient("ac");
+        registry.register("model", client);
+        registry.close();
+        assertThat(client.closed).isTrue();
+        assertThat(registry.has("model")).isFalse();
+    }
+
     private static class FakeEmbeddingClient implements EmbeddingClient {
         private final String name;
 
@@ -148,6 +157,55 @@ class EmbeddingRegistryTest {
         @Override
         public HealthStatus health() {
             return HealthStatus.HEALTHY;
+        }
+    }
+
+    private static class FakeAutoCloseableClient implements EmbeddingClient, AutoCloseable {
+        private final String name;
+        volatile boolean closed = false;
+
+        FakeAutoCloseableClient(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public Result<float[], EmbeddingError> embed(String text, EmbedOptions options) {
+            return null;
+        }
+
+        @Override
+        public Result<List<float[]>, EmbeddingError> embedBatch(List<String> texts, EmbedOptions options) {
+            return null;
+        }
+
+        @Override
+        public String providerName() {
+            return name;
+        }
+
+        @Override
+        public String modelName() {
+            return "fake";
+        }
+
+        @Override
+        public int nativeDimensions() {
+            return 3;
+        }
+
+        @Override
+        public boolean isLocal() {
+            return false;
+        }
+
+        @Override
+        public HealthStatus health() {
+            return HealthStatus.HEALTHY;
+        }
+
+        @Override
+        public void close() {
+            closed = true;
         }
     }
 }

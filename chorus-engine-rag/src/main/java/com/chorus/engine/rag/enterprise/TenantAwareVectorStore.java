@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TenantAwareVectorStore implements VectorStore {
 
     private final Map<String, VectorStore> tenantStores = new ConcurrentHashMap<>();
+    private final Map<String, String> chunkIdToTenantId = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> documentIdToTenantIds = new ConcurrentHashMap<>();
     private final VectorOperations vectorOps;
     private final TenantIsolation isolation;
 
@@ -35,7 +37,12 @@ public final class TenantAwareVectorStore implements VectorStore {
             byTenant.computeIfAbsent(tenantId, k -> new ArrayList<>()).add(chunk);
         }
         for (Map.Entry<String, List<Chunk>> entry : byTenant.entrySet()) {
-            getStore(entry.getKey()).upsert(entry.getValue());
+            String tenantId = entry.getKey();
+            getStore(tenantId).upsert(entry.getValue());
+            for (Chunk chunk : entry.getValue()) {
+                chunkIdToTenantId.put(chunk.id(), tenantId);
+                documentIdToTenantIds.computeIfAbsent(chunk.documentId(), k -> ConcurrentHashMap.newKeySet()).add(tenantId);
+            }
         }
     }
 
@@ -51,16 +58,32 @@ public final class TenantAwareVectorStore implements VectorStore {
     @Override
     public void delete(@NonNull Set<String> chunkIds) {
         Objects.requireNonNull(chunkIds, "chunkIds");
-        for (VectorStore store : tenantStores.values()) {
-            store.delete(chunkIds);
+        Map<String, Set<String>> byTenant = new HashMap<>();
+        for (String chunkId : chunkIds) {
+            String tenantId = chunkIdToTenantId.get(chunkId);
+            if (tenantId != null) {
+                byTenant.computeIfAbsent(tenantId, k -> ConcurrentHashMap.newKeySet()).add(chunkId);
+            }
+        }
+        for (Map.Entry<String, Set<String>> entry : byTenant.entrySet()) {
+            getStore(entry.getKey()).delete(entry.getValue());
+        }
+        for (String chunkId : chunkIds) {
+            chunkIdToTenantId.remove(chunkId);
         }
     }
 
     @Override
     public void deleteByDocument(@NonNull String documentId) {
         Objects.requireNonNull(documentId, "documentId");
-        for (VectorStore store : tenantStores.values()) {
-            store.deleteByDocument(documentId);
+        Set<String> tenantIds = documentIdToTenantIds.remove(documentId);
+        if (tenantIds != null) {
+            for (String tenantId : tenantIds) {
+                VectorStore store = tenantStores.get(tenantId);
+                if (store != null) {
+                    store.deleteByDocument(documentId);
+                }
+            }
         }
     }
 

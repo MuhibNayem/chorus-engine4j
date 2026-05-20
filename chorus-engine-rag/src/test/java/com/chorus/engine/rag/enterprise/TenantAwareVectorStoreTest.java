@@ -79,29 +79,52 @@ class TenantAwareVectorStoreTest {
     }
 
     @Test
-    void delete_deletesAcrossAllTenants() {
+    void delete_deletesOnlyFromOwningTenant() {
         VectorOperations vectorOps = VectorOperations.autoDetect();
         TenantIsolation iso = new TenantIsolation("t1", TenantIsolation.IsolationLevel.LOGICAL, "pre_");
         TenantAwareVectorStore store = new TenantAwareVectorStore(vectorOps, iso);
 
         Chunk c1 = new Chunk("c1", "d1", "text", 0, 1, null, Map.of("tenantId", "tenant-a"));
-        store.upsert(List.of(c1));
-        assertThat(store.count()).isEqualTo(1);
+        Chunk c2 = new Chunk("c2", "d2", "text", 0, 1, null, Map.of("tenantId", "tenant-b"));
+        store.upsert(List.of(c1, c2));
+        assertThat(store.count()).isEqualTo(2);
 
         store.delete(Set.of("c1"));
-        assertThat(store.count()).isEqualTo(0);
+        assertThat(store.count()).isEqualTo(1);
+        assertThat(store.search(new float[]{1.0f, 0.0f, 0.0f}, 10, Map.of("_tenantId", "tenant-b")))
+            .hasSize(1);
     }
 
     @Test
-    void deleteByDocument_deletesAcrossAllTenants() {
+    void deleteByDocument_deletesOnlyFromOwningTenant() {
         VectorOperations vectorOps = VectorOperations.autoDetect();
         TenantIsolation iso = new TenantIsolation("t1", TenantIsolation.IsolationLevel.LOGICAL, "pre_");
         TenantAwareVectorStore store = new TenantAwareVectorStore(vectorOps, iso);
 
         Chunk c1 = new Chunk("c1", "d1", "text", 0, 1, null, Map.of("tenantId", "tenant-a"));
-        store.upsert(List.of(c1));
+        Chunk c2 = new Chunk("c2", "d2", "text", 0, 1, null, Map.of("tenantId", "tenant-b"));
+        store.upsert(List.of(c1, c2));
+        assertThat(store.count()).isEqualTo(2);
 
         store.deleteByDocument("d1");
+        assertThat(store.count()).isEqualTo(1);
+        assertThat(store.search(new float[]{1.0f, 0.0f, 0.0f}, 10, Map.of("_tenantId", "tenant-b")))
+            .hasSize(1);
+    }
+
+    @Test
+    void deleteByDocument_sharedDocumentId_deletesFromAllOwningTenants() {
+        VectorOperations vectorOps = VectorOperations.autoDetect();
+        TenantIsolation iso = new TenantIsolation("t1", TenantIsolation.IsolationLevel.LOGICAL, "pre_");
+        TenantAwareVectorStore store = new TenantAwareVectorStore(vectorOps, iso);
+
+        // Same document ID in two tenants (e.g., shared template)
+        Chunk c1 = new Chunk("c1", "shared-doc", "text", 0, 1, null, Map.of("tenantId", "tenant-a"));
+        Chunk c2 = new Chunk("c2", "shared-doc", "text", 0, 1, null, Map.of("tenantId", "tenant-b"));
+        store.upsert(List.of(c1, c2));
+        assertThat(store.count()).isEqualTo(2);
+
+        store.deleteByDocument("shared-doc");
         assertThat(store.count()).isEqualTo(0);
     }
 

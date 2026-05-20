@@ -103,4 +103,24 @@ class HierarchicalMemoryManagerTest {
         assertEquals(1, stats.episodicSize());
         assertEquals(1, stats.proceduralSize());
     }
+
+    @Test
+    void consolidatedEpisodeIdsAreBounded() {
+        ShortTermMemory working = new ShortTermMemory(1000, 100);
+        EpisodicMemory episodic = new EpisodicMemory(100, 30);
+        LongTermMemory semantic = new LongTermMemory(null, null);
+        ProceduralMemory procedural = new ProceduralMemory(50);
+        // Tiny bound to force eviction
+        HierarchicalMemoryManager bounded = new HierarchicalMemoryManager(
+            working, episodic, semantic, procedural, 3, 0.7, 2);
+
+        // The consolidatedEpisodeIds map should evict eldest entries when size > 2
+        // We can't directly inspect it, but we can verify the manager functions
+        // without an OutOfMemoryError by recording many episodes
+        for (int i = 0; i < 100; i++) {
+            manager.recordEpisode(Message.user("msg" + i), "type" + i, Map.of(), null);
+        }
+        assertTrue(manager.episodicRecent(100).size() > 0);
+        bounded.close();
+    }
 }

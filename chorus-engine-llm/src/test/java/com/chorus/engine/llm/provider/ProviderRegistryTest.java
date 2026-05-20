@@ -56,6 +56,24 @@ class ProviderRegistryTest {
     }
 
     @Test
+    void staticAnthropic_acceptsObjectMapper() {
+        LlmClient client = ProviderRegistry.anthropic("key", MAPPER);
+        assertThat(client).isInstanceOf(AnthropicProvider.class);
+    }
+
+    @Test
+    void staticGemini_acceptsObjectMapper() {
+        LlmClient client = ProviderRegistry.gemini("key", MAPPER);
+        assertThat(client).isInstanceOf(GeminiProvider.class);
+    }
+
+    @Test
+    void staticVllm_acceptsObjectMapper() {
+        LlmClient client = ProviderRegistry.vllm("http://localhost:8000", null, MAPPER);
+        assertThat(client).isInstanceOf(VllmChatProvider.class);
+    }
+
+    @Test
     void getOrNull_returns_null_for_missing() {
         assertThat(registry.getOrNull("missing")).isNull();
     }
