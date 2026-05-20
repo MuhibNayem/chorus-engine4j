@@ -1,21 +1,12 @@
 <div align="center">
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="96" height="96" role="img" aria-label="Chorus Engine logo">
-  <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="url(#g1)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
-  <path d="M16 9 L22 12.5 L22 19.5 L16 23 L10 19.5 L10 12.5 Z" fill="rgba(255,255,255,0.95)"/>
-  <defs>
-    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#c4b5fd"/>
-      <stop offset="1" stop-color="#7c3aed"/>
-    </linearGradient>
-  </defs>
-</svg>
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IkNob3J1cyBFbmdpbmUgbG9nbyI+CiAgPHBhdGggZD0iTTE2IDIgTDI4IDkgTDI4IDIzIEwxNiAzMCBMNCAyMyBMNCA5IFoiIGZpbGw9InVybCgjZzEpIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC41KSIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHBhdGggZD0iTTE2IDkgTDIyIDEyLjUgTDIyIDE5LjUgTDE2IDIzIEwxMCAxOS41IEwxMCAxMi41IFoiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC45NSkiLz4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZzEiIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYzRiNWZkIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+Cjwvc3ZnPg==" alt="Chorus Engine logo" width="96" height="96" />
 
 # Chorus Engine
 
 **Java-native agentic AI framework for production-grade multi-agent systems.**
 
-[![Java CI](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/java-ci.yml/badge.svg)](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/java-ci.yml)
+[![Java CI](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/ci.yml/badge.svg)](https://github.com/MuhibNayem/chorus-engine4j/actions/workflows/ci.yml)
 [![Java 25](https://img.shields.io/badge/Java-25-blue.svg)](https://openjdk.org/projects/jdk/25/)
 [![Spring Boot 4.0](https://img.shields.io/badge/Spring%20Boot-4.0-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
