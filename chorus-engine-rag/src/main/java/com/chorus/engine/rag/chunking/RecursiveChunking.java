@@ -58,8 +58,8 @@ public final class RecursiveChunking implements ChunkingStrategy {
                     startIndex, estimateTokens(part), null,
                     java.util.Map.of("source", doc.source())));
             }
-            String remainder = text.substring(Math.max(1, chunkSize - overlap));
-            return splitRecursively(remainder, doc, sepIndex, startIndex + 1, chunks);
+            String remainder = text.substring(Math.max(0, chunkSize - overlap));
+            return splitRecursively(remainder, doc, 0, startIndex + 1, chunks);
         }
 
         String sep = separators.get(sepIndex);
@@ -74,7 +74,7 @@ public final class RecursiveChunking implements ChunkingStrategy {
                 startIndex, estimateTokens(part), null,
                 java.util.Map.of("source", doc.source())));
         }
-        String remainder = text.substring(Math.max(0, splitPos - overlap));
+        String remainder = text.substring(Math.max(0, splitPos + sep.length() - overlap));
         return splitRecursively(remainder, doc, 0, startIndex + 1, chunks);
     }
 

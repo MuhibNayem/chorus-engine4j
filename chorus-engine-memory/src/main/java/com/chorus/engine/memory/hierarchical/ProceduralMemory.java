@@ -27,8 +27,9 @@ public final class ProceduralMemory {
         this.maxProcedures = maxProcedures;
     }
 
-    public void learn(@NonNull String procedureId, @NonNull String description,
+    public synchronized void learn(@NonNull String procedureId, @NonNull String description,
                       @NonNull List<String> steps, @Nullable Map<String, Object> context) {
+        Objects.requireNonNull(procedureId, "procedureId");
         Objects.requireNonNull(description, "description");
         Procedure proc = new Procedure(
             procedureId, description, List.copyOf(steps),
@@ -55,10 +56,10 @@ public final class ProceduralMemory {
     }
 
     public @NonNull List<Procedure> findByKeyword(@NonNull String keyword) {
-        String lower = keyword.toLowerCase();
+        String lower = keyword.toLowerCase(java.util.Locale.ROOT);
         return procedures.values().stream()
-            .filter(p -> p.description().toLowerCase().contains(lower)
-                || p.steps().stream().anyMatch(s -> s.toLowerCase().contains(lower)))
+            .filter(p -> p.description().toLowerCase(java.util.Locale.ROOT).contains(lower)
+                || p.steps().stream().anyMatch(s -> s.toLowerCase(java.util.Locale.ROOT).contains(lower)))
             .sorted(Comparator.comparingDouble(Procedure::successRate).reversed())
             .toList();
     }
@@ -84,7 +85,7 @@ public final class ProceduralMemory {
 
     public int size() { return procedures.size(); }
 
-    private void evictIfNeeded() {
+    private synchronized void evictIfNeeded() {
         if (procedures.size() > maxProcedures) {
             procedures.values().stream()
                 .min(Comparator.comparingInt(Procedure::invocationCount)

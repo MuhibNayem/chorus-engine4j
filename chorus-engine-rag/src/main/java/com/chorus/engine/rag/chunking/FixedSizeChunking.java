@@ -58,8 +58,13 @@ public final class FixedSizeChunking implements ChunkingStrategy {
                 ));
             }
             if (end >= text.length()) break;
-            pos = end - overlap;
-            if (pos <= 0) break;
+            int nextPos = end - overlap;
+            // Ensure forward progress to prevent infinite loops
+            if (nextPos <= pos) {
+                nextPos = end;
+            }
+            pos = nextPos;
+            if (pos >= text.length()) break;
         }
         return chunks;
     }

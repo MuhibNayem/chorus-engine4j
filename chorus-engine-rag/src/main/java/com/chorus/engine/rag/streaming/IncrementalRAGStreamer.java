@@ -119,18 +119,28 @@ public final class IncrementalRAGStreamer {
         RetrievalEngine.@NonNull RetrieveOptions retrieveOptions,
         @NonNull CancellationToken cancellationToken
     ) {
-        return subscriber -> executor.submit(() -> {
+        return subscriber -> {
+            AtomicBoolean cancelled = new AtomicBoolean(false);
+            subscriber.onSubscribe(new Flow.Subscription() {
+                @Override public void request(long n) {}
+                @Override public void cancel() {
+                    cancelled.set(true);
+                    cancellationToken.cancel("Subscriber cancelled");
+                }
+            });
             try {
-                subscriber.onSubscribe(new Flow.Subscription() {
-                    @Override public void request(long n) {}
-                    @Override public void cancel() { cancellationToken.cancel("Subscriber cancelled"); }
+                executor.submit(() -> {
+                    try {
+                        runSession(userQuery, retrieveOptions, cancellationToken, cancelled, subscriber::onNext);
+                        if (!cancelled.get()) subscriber.onComplete();
+                    } catch (Exception e) {
+                        if (!cancelled.get()) subscriber.onError(e);
+                    }
                 });
-                runSession(userQuery, retrieveOptions, cancellationToken, subscriber::onNext);
-                subscriber.onComplete();
             } catch (Exception e) {
-                subscriber.onError(e);
+                if (!cancelled.get()) subscriber.onError(e);
             }
-        });
+        };
     }
 
     // ---- internal session orchestration ----
@@ -139,6 +149,7 @@ public final class IncrementalRAGStreamer {
         @NonNull String query,
         RetrievalEngine.@NonNull RetrieveOptions retrieveOptions,
         @NonNull CancellationToken token,
+        AtomicBoolean cancelled,
         @NonNull Consumer<RagStreamEvent> eventSink
     ) {
         Instant sessionStart = Instant.now();
@@ -156,7 +167,7 @@ public final class IncrementalRAGStreamer {
         for (RetrievalStage stage : stages) {
             CompletableFuture<Void> future = stage.retrieve(query, retrieveOptions)
                 .thenAcceptAsync(chunks -> {
-                    if (token.isCancelled() || sessionFailed.get()) return;
+                    if (token.isCancelled() || sessionFailed.get() || cancelled.get()) return;
 
                     eventSink.accept(new RagStreamEvent.RetrievalCompleted(
                         Instant.now(), stage.name(), chunks.size(),
@@ -173,17 +184,17 @@ public final class IncrementalRAGStreamer {
                                 waveOrdinal, accumulator, sessionStart);
                         };
 
-                        if (shouldStart) {
-                            generationStarted.set(true);
-                            startGeneration(query, accumulator, token, eventSink,
+                        if (shouldStart && generationStarted.compareAndSet(false, true)) {
+                            startGeneration(query, accumulator, token, cancelled, eventSink,
                                 activeGeneration, totalTokensGenerated, generationFutures,
                                 sessionStart, sessionFailed);
                         }
                     } else {
                         // Generation already started — late waves are supplemental
                         if (added > 0) {
+                            Set<String> knownIds = accumulator.snapshotIds();
                             List<Chunk> newChunks = chunks.stream()
-                                .filter(c -> !accumulator.snapshotIds().contains(c.id())
+                                .filter(c -> !knownIds.contains(c.id())
                                     || stage.priority() > 1) // Include reranked even if seen
                                 .toList();
                             supplementalChunks.addAll(newChunks);
@@ -202,11 +213,12 @@ public final class IncrementalRAGStreamer {
                     }
                 }, executor)
                 .exceptionally(ex -> {
-                    if (token.isCancelled() || sessionFailed.get()) return null;
+                    if (token.isCancelled() || sessionFailed.get() || cancelled.get()) return null;
+                    Throwable cause = (ex instanceof java.util.concurrent.CompletionException ce) ? ce.getCause() : ex;
                     eventSink.accept(new RagStreamEvent.RetrievalFailed(
                         Instant.now(), stage.name(),
-                        ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : "Unknown",
-                        ex.getMessage() != null ? ex.getMessage() : "Retrieval failed",
+                        cause != null ? cause.getClass().getSimpleName() : "Unknown",
+                        cause != null && cause.getMessage() != null ? cause.getMessage() : "Retrieval failed",
                         false));
                     completedStages.incrementAndGet();
                     return null;
@@ -224,7 +236,7 @@ public final class IncrementalRAGStreamer {
         try {
             CompletableFuture.allOf(stageFutures.toArray(new CompletableFuture[0])).join();
         } catch (Exception e) {
-            if (!token.isCancelled()) {
+            if (!token.isCancelled() && !cancelled.get()) {
                 sessionFailed.set(true);
                 eventSink.accept(new RagStreamEvent.SessionFailed(
                     Instant.now(), "SESSION_ERROR", e.getMessage()));
@@ -232,10 +244,10 @@ public final class IncrementalRAGStreamer {
         }
 
         // If WAIT_FOR_ALL and no generation started yet (e.g., all stages failed), start now
-        if (!generationStarted.get() && !sessionFailed.get() && !token.isCancelled()) {
+        if (!generationStarted.get() && !sessionFailed.get() && !token.isCancelled() && !cancelled.get()) {
             if (accumulator.chunkCount() > 0) {
                 generationStarted.set(true);
-                startGeneration(query, accumulator, token, eventSink,
+                startGeneration(query, accumulator, token, cancelled, eventSink,
                     activeGeneration, totalTokensGenerated, generationFutures,
                     sessionStart, sessionFailed);
             } else {
@@ -246,41 +258,24 @@ public final class IncrementalRAGStreamer {
         }
 
         // Wait for generation to complete
-        if (!sessionFailed.get() && !token.isCancelled()) {
+        if (!sessionFailed.get() && !token.isCancelled() && !cancelled.get()) {
             try {
                 CompletableFuture.allOf(generationFutures.toArray(new CompletableFuture[0]))
                     .get(maxLatencyBudget.toMillis(), TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                // Proceed with partial results
+                sessionFailed.set(true);
+                eventSink.accept(new RagStreamEvent.SessionFailed(
+                    Instant.now(), "GENERATION_TIMEOUT", "Generation exceeded latency budget"));
             } catch (Exception e) {
-                if (!token.isCancelled()) {
+                if (!token.isCancelled() && !cancelled.get()) {
                     sessionFailed.set(true);
                     eventSink.accept(new RagStreamEvent.SessionFailed(
-                        Instant.now(), "GENERATION_TIMEOUT", e.getMessage()));
+                        Instant.now(), "GENERATION_ERROR", e.getMessage()));
                 }
             }
         }
 
-        // Post-generation verification (PIPELINE / ADAPTIVE only)
-        if (verifier != null && !sessionFailed.get() && !token.isCancelled()
-            && (strategy == GenerationStrategy.PIPELINE || strategy == GenerationStrategy.ADAPTIVE)
-            && !supplementalChunks.isEmpty()) {
-
-            GenerationController finalGen = activeGeneration.get();
-            if (finalGen != null) {
-                // Build the final answer text from emitted tokens
-                // In a real system, we'd capture the full answer. For now, we skip
-                // verification if we can't reconstruct the answer.
-                // A production implementation would buffer tokens during streaming.
-            }
-        }
-
-        if (!sessionFailed.get() && !token.isCancelled()) {
-            GenerationController finalGen = activeGeneration.get();
-            if (finalGen != null) {
-                totalTokensGenerated.addAndGet(finalGen.tokensEmitted());
-            }
-
+        if (!sessionFailed.get() && !token.isCancelled() && !cancelled.get()) {
             eventSink.accept(new RagStreamEvent.SessionCompleted(
                 Instant.now(),
                 Duration.between(sessionStart, Instant.now()).toMillis(),
@@ -311,6 +306,7 @@ public final class IncrementalRAGStreamer {
         @NonNull String query,
         @NonNull ContextAccumulator accumulator,
         @NonNull CancellationToken token,
+        AtomicBoolean cancelled,
         @NonNull Consumer<RagStreamEvent> eventSink,
         @NonNull AtomicReference<GenerationController> activeGeneration,
         @NonNull AtomicInteger totalTokensGenerated,
@@ -338,7 +334,7 @@ public final class IncrementalRAGStreamer {
                 boolean completed = controller.start(
                     query, accumulator.buildContext(), token, eventSink);
 
-                if (completed) {
+                if (completed && !cancelled.get()) {
                     eventSink.accept(new RagStreamEvent.GenerationCompleted(
                         Instant.now(), genId,
                         accumulator.usedTokens(), controller.tokensEmitted(),
@@ -348,7 +344,7 @@ public final class IncrementalRAGStreamer {
 
                 totalTokensGenerated.addAndGet(controller.tokensEmitted());
             } catch (Exception e) {
-                if (!token.isCancelled()) {
+                if (!token.isCancelled() && !cancelled.get()) {
                     sessionFailed.set(true);
                     eventSink.accept(new RagStreamEvent.SessionFailed(
                         Instant.now(), "GENERATION_ERROR", e.getMessage()));
@@ -361,5 +357,13 @@ public final class IncrementalRAGStreamer {
 
     public void close() {
         executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            executor.shutdownNow();
+        }
     }
 }

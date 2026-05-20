@@ -73,6 +73,7 @@ import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -557,7 +558,7 @@ public class ChorusAutoConfiguration {
                                 null
                             );
                             var result = llmClient.complete(request, CancellationToken.create());
-                            String text = result.message().content().toLowerCase();
+                            String text = result.message().content().toLowerCase(Locale.ROOT);
                             boolean violates = text.contains("\"violatespolicy\": true") || text.contains("violates");
                             double confidence = violates ? g.getLlmJudgeBlockThreshold() : 0.1;
                             return new LlmJudgeGuardrail.LlmJudgeClient.JudgeResult(violates, confidence, result.message().content());

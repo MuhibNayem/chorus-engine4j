@@ -39,7 +39,10 @@ public final class EmbeddingRegistry {
     }
 
     public void remove(@NonNull String modelName) {
-        clients.remove(modelName);
+        EmbeddingClient removed = clients.remove(modelName);
+        if (removed instanceof AutoCloseable ac) {
+            try { ac.close(); } catch (Exception ignored) {}
+        }
     }
 
     public @NonNull Map<String, EmbeddingClient> all() {

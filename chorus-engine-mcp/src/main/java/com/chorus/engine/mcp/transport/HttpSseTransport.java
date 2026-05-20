@@ -34,6 +34,7 @@ public final class HttpSseTransport implements McpTransport {
     private final ObjectMapper mapper;
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean completed = new AtomicBoolean(false);
     private final CopyOnWriteArrayList<Flow.Subscriber<? super JsonRpcMessage>> subscribers = new CopyOnWriteArrayList<>();
     private final AtomicReference<Thread> sseThread = new AtomicReference<>();
     private final AtomicLong requestId = new AtomicLong(0);

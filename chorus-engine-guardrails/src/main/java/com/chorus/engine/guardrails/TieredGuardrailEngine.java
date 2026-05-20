@@ -66,11 +66,14 @@ public final class TieredGuardrailEngine {
                     GuardrailResult r = f.get(tier2Timeout.toMillis(), TimeUnit.MILLISECONDS);
                     results.add(r);
                     if (!r.allowed() && r.action() == GuardrailResult.Action.BLOCK) {
+                        futures.forEach(fut -> fut.cancel(true));
                         return new EvaluationResult(false, List.copyOf(results), input, Duration.between(start, Instant.now()));
                     }
                 } catch (TimeoutException e) {
+                    f.cancel(true);
                     results.add(GuardrailResult.allow(guardrailName(f), 2, tier2Timeout));
                 } catch (Exception e) {
+                    f.cancel(true);
                     results.add(GuardrailResult.allow(guardrailName(f), 2, Duration.ZERO));
                 }
             }

@@ -135,7 +135,17 @@ public interface GraphCheckpointer<S> {
             return delegate.loadLatest(threadId).flatMap(agentState -> {
                 Map<String, Object> context = agentState.context();
                 byte[] bytes = (byte[]) context.get("_state");
-                List<String> nextNodes = (List<String>) context.getOrDefault("_nextNodes", List.of());
+                if (bytes == null) {
+                    return Result.err(Checkpointer.CheckpointError.of("CORRUPT",
+                        "Checkpoint missing _state field for thread: " + threadId));
+                }
+                List<String> nextNodes;
+                try {
+                    nextNodes = (List<String>) context.getOrDefault("_nextNodes", List.of());
+                } catch (ClassCastException e) {
+                    return Result.err(Checkpointer.CheckpointError.of("CORRUPT",
+                        "Checkpoint has malformed _nextNodes field for thread: " + threadId));
+                }
                 long sequence = ((Number) context.getOrDefault("_sequence", 0L)).longValue();
                 S state = deserializer.apply(bytes);
                 return Result.ok(new Checkpoint<>(state, nextNodes, sequence));

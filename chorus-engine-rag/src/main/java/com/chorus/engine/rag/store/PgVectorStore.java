@@ -34,15 +34,23 @@ public final class PgVectorStore implements VectorStore {
     public PgVectorStore(@NonNull DataSource dataSource,
                          @NonNull String tableName,
                          int dimensions,
-                         @Nullable String distanceMetric) {
+                         @Nullable String distanceMetric,
+                         @NonNull ObjectMapper objectMapper) {
         this.dataSource = Objects.requireNonNull(dataSource);
         this.tableName = sanitizeIdentifier(Objects.requireNonNull(tableName));
         if (dimensions <= 0) throw new IllegalArgumentException("dimensions must be > 0");
         this.dimensions = dimensions;
         this.distanceMetric = distanceMetric == null || distanceMetric.isBlank() ? "cosine" : distanceMetric.toLowerCase(Locale.ROOT);
         this.vectorOps = resolveVectorOps(this.distanceMetric);
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
         initializeSchema();
+    }
+
+    public PgVectorStore(@NonNull DataSource dataSource,
+                         @NonNull String tableName,
+                         int dimensions,
+                         @Nullable String distanceMetric) {
+        this(dataSource, tableName, dimensions, distanceMetric, new ObjectMapper());
     }
 
     public PgVectorStore(@NonNull DataSource dataSource,
@@ -70,31 +78,37 @@ public final class PgVectorStore implements VectorStore {
                 embedding = EXCLUDED.embedding
             """.formatted(tableName);
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                for (Chunk chunk : chunks) {
+                    float[] emb = chunk.embedding();
+                    if (emb == null) {
+                        throw new IllegalArgumentException("Chunk " + chunk.id() + " has no embedding");
+                    }
+                    if (emb.length != dimensions) {
+                        throw new IllegalArgumentException(
+                            "Chunk " + chunk.id() + " embedding length " + emb.length + " != " + dimensions);
+                    }
 
-            for (Chunk chunk : chunks) {
-                float[] emb = chunk.embedding();
-                if (emb == null) {
-                    throw new IllegalArgumentException("Chunk " + chunk.id() + " has no embedding");
+                    ps.setString(1, chunk.id());
+                    ps.setString(2, chunk.documentId());
+                    ps.setString(3, chunk.text());
+                    ps.setInt(4, chunk.index());
+                    ps.setInt(5, chunk.tokenCount());
+                    ps.setString(6, chunk.parentChunkId());
+                    ps.setString(7, toJson(chunk.metadata()));
+                    ps.setObject(8, toPgVectorLiteral(emb));
+                    ps.addBatch();
                 }
-                if (emb.length != dimensions) {
-                    throw new IllegalArgumentException(
-                        "Chunk " + chunk.id() + " embedding length " + emb.length + " != " + dimensions);
-                }
-
-                ps.setString(1, chunk.id());
-                ps.setString(2, chunk.documentId());
-                ps.setString(3, chunk.text());
-                ps.setInt(4, chunk.index());
-                ps.setInt(5, chunk.tokenCount());
-                ps.setString(6, chunk.parentChunkId());
-                ps.setString(7, toJson(chunk.metadata()));
-                ps.setObject(8, toPgVectorLiteral(emb));
-                ps.addBatch();
+                ps.executeBatch();
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-
-            ps.executeBatch();
         } catch (SQLException e) {
             throw new VectorStoreException("upsert failed", e);
         }
@@ -116,7 +130,7 @@ public final class PgVectorStore implements VectorStore {
 
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT id, document_id, text, chunk_index, token_count, parent_chunk_id, metadata, embedding ")
-           .append(distanceMetric.equals("inner_product") ? "<#>" : "embedding ").append(operator).append(" ? AS score ")
+           .append(operator).append(" ? AS score ")
            .append("FROM \"").append(tableName).append("\" ");
 
         boolean hasFilters = !filters.isEmpty();
@@ -273,7 +287,6 @@ public final class PgVectorStore implements VectorStore {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private RetrievalResult mapRowToResult(@NonNull ResultSet rs) throws SQLException {
         String id = rs.getString("id");
         String documentId = rs.getString("document_id");
@@ -288,7 +301,7 @@ public final class PgVectorStore implements VectorStore {
         try {
             metadata = metadataJson == null
                 ? Map.of()
-                : objectMapper.readValue(metadataJson, HashMap.class);
+                : objectMapper.readValue(metadataJson, new com.fasterxml.jackson.core.type.TypeReference<>() {});
         } catch (JsonProcessingException e) {
             metadata = Map.of();
         }

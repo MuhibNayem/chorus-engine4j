@@ -155,15 +155,16 @@ public final class MetricsCollector {
         }
 
         private long percentile(double p) {
+            List<Long> copy;
             synchronized (lock) {
                 if (values.isEmpty()) {
                     return 0L;
                 }
-                List<Long> sorted = new ArrayList<>(values);
-                Collections.sort(sorted);
-                int index = (int) Math.ceil(p * sorted.size()) - 1;
-                return sorted.get(Math.max(0, index));
+                copy = new ArrayList<>(values);
             }
+            Collections.sort(copy);
+            int index = (int) Math.ceil(p * copy.size()) - 1;
+            return copy.get(Math.max(0, index));
         }
     }
 }

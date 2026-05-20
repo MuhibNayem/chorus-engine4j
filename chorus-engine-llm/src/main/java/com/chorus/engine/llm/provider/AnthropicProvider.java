@@ -29,6 +29,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -56,13 +57,15 @@ public final class AnthropicProvider implements LlmClient {
         @NonNull String apiKey,
         @NonNull HttpClient httpClient,
         @NonNull Duration timeout,
-        @NonNull RetryPolicy retryPolicy
+        @NonNull RetryPolicy retryPolicy,
+        @NonNull ObjectMapper objectMapper,
+        @NonNull CircuitBreaker circuitBreaker
     ) {
         this.apiKey = apiKey;
         this.httpClient = httpClient;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
         this.retryPolicy = retryPolicy;
-        this.circuitBreaker = CircuitBreaker.defaults();
+        this.circuitBreaker = circuitBreaker;
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.timeout = timeout;
     }
@@ -71,8 +74,13 @@ public final class AnthropicProvider implements LlmClient {
     public Flow.@NonNull Publisher<StreamEvent> stream(@NonNull ChatRequest request, @NonNull CancellationToken cancellationToken) {
         if (closed.get()) throw new IllegalStateException("Provider is closed");
         if (!circuitBreaker.allowsRequest()) {
-            return subscriber -> subscriber.onError(
-                new RuntimeException("Circuit breaker is OPEN for provider anthropic"));
+            return subscriber -> {
+                subscriber.onSubscribe(new Flow.Subscription() {
+                    @Override public void request(long n) {}
+                    @Override public void cancel() {}
+                });
+                subscriber.onError(new RuntimeException("Circuit breaker is OPEN for provider anthropic"));
+            };
         }
         return new AnthropicStreamPublisher(request, cancellationToken);
     }
@@ -138,7 +146,7 @@ public final class AnthropicProvider implements LlmClient {
         });
 
         try {
-            return future.get(request.maxTokens() * 2L, TimeUnit.MILLISECONDS);
+            return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             throw new RuntimeException("LLM request timed out", e);
         } catch (Exception e) {
@@ -158,6 +166,14 @@ public final class AnthropicProvider implements LlmClient {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                executor.shutdownNow();
+            }
         }
     }
 
@@ -182,7 +198,7 @@ public final class AnthropicProvider implements LlmClient {
                 continue;
             }
             ObjectNode m = messages.addObject();
-            m.put("role", msg.role() == Role.TOOL ? "user" : msg.role().name().toLowerCase());
+            m.put("role", msg.role() == Role.TOOL ? "user" : msg.role().name().toLowerCase(Locale.ROOT));
             if (msg.role() == Role.TOOL && msg.toolCallId() != null) {
                 ArrayNode contentArray = m.putArray("content");
                 ObjectNode toolResult = contentArray.addObject();
@@ -337,28 +353,42 @@ public final class AnthropicProvider implements LlmClient {
 
         @Override
         public void subscribe(Flow.Subscriber<? super StreamEvent> subscriber) {
-            executor.submit(() -> {
-                try {
-                    subscriber.onSubscribe(new Flow.Subscription() {
-                        private final AtomicBoolean cancelled = new AtomicBoolean(false);
-                        @Override public void request(long n) {}
-                        @Override public void cancel() { cancelled.set(true); }
+            AtomicBoolean cancelled = new AtomicBoolean(false);
+            AtomicLong demand = new AtomicLong(0);
+            subscriber.onSubscribe(new Flow.Subscription() {
+                @Override public void request(long n) {
+                    if (n <= 0) {
+                        cancelled.set(true);
+                        subscriber.onError(new IllegalArgumentException("Non-positive demand"));
+                        return;
+                    }
+                    demand.getAndUpdate(d -> {
+                        long sum = d + n;
+                        return sum < 0 ? Long.MAX_VALUE : sum;
                     });
-
-                    executeWithRetry(subscriber);
-                    subscriber.onComplete();
-                } catch (Exception e) {
-                    subscriber.onError(e);
                 }
+                @Override public void cancel() { cancelled.set(true); }
             });
+            try {
+                executor.submit(() -> {
+                    try {
+                        executeWithRetry(subscriber, cancelled, demand);
+                        if (!cancelled.get()) subscriber.onComplete();
+                    } catch (Exception e) {
+                        if (!cancelled.get()) subscriber.onError(e);
+                    }
+                });
+            } catch (Exception e) {
+                if (!cancelled.get()) subscriber.onError(e);
+            }
         }
 
-        private void executeWithRetry(Flow.Subscriber<? super StreamEvent> subscriber) throws Exception {
+        private void executeWithRetry(Flow.Subscriber<? super StreamEvent> subscriber, AtomicBoolean cancelled, AtomicLong demand) throws Exception {
             int attempt = 0;
             Exception lastError = null;
 
             while (attempt < retryPolicy.maxAttempts()) {
-                if (cancellationToken.isCancelled()) {
+                if (cancelled.get() || cancellationToken.isCancelled()) {
                     throw new CancellationException("Request cancelled: " + cancellationToken.reason());
                 }
 
@@ -369,7 +399,9 @@ public final class AnthropicProvider implements LlmClient {
 
                     if (response.statusCode() == 200) {
                         circuitBreaker.recordSuccess();
-                        parseSseStream(response.body(), subscriber, start);
+                        try (InputStream bodyStream = response.body()) {
+                            parseSseStream(bodyStream, subscriber, start, cancelled, demand);
+                        }
                         return;
                     }
 
@@ -396,7 +428,7 @@ public final class AnthropicProvider implements LlmClient {
             throw lastError != null ? lastError : new RuntimeException("Max retries exceeded");
         }
 
-        private void parseSseStream(InputStream stream, Flow.Subscriber<? super StreamEvent> subscriber, Instant start) {
+        private void parseSseStream(InputStream stream, Flow.Subscriber<? super StreamEvent> subscriber, Instant start, AtomicBoolean cancelled, AtomicLong demand) {
             SseParser parser = new SseParser(stream);
             AtomicReference<String> currentToolCallId = new AtomicReference<>();
             AtomicReference<String> currentToolName = new AtomicReference<>();
@@ -405,7 +437,7 @@ public final class AnthropicProvider implements LlmClient {
 
             try {
                 parser.parse(event -> {
-                    if (cancellationToken.isCancelled()) return;
+                    if (cancelled.get() || cancellationToken.isCancelled()) return;
                     if ("[DONE]".equals(event.data().trim())) return;
 
                     try {
@@ -423,7 +455,8 @@ public final class AnthropicProvider implements LlmClient {
                                     String name = block.path("name").asText("");
                                     currentToolCallId.set(id);
                                     currentToolName.set(name);
-                                    subscriber.onNext(new StreamEvent.ToolCallStart(id, name, Map.of()));
+                                    emit(subscriber, new StreamEvent.ToolCallStart(id, name, Map.of()), demand, cancelled);
+                                    currentArgs.setLength(0);
                                 }
                             }
                             case "content_block_delta" -> {
@@ -432,15 +465,19 @@ public final class AnthropicProvider implements LlmClient {
                                 switch (deltaType) {
                                     case "text_delta" -> {
                                         String text = delta.path("text").asText("");
-                                        subscriber.onNext(new StreamEvent.Token(text, 0, null));
+                                        emit(subscriber, new StreamEvent.Token(text, 0, null), demand, cancelled);
                                     }
                                     case "thinking_delta" -> {
                                         String thinking = delta.path("thinking").asText("");
-                                        subscriber.onNext(new StreamEvent.Token("", 0, thinking));
+                                        emit(subscriber, new StreamEvent.Token("", 0, thinking), demand, cancelled);
                                     }
                                     case "input_json_delta" -> {
                                         String partial = delta.path("partial_json").asText("");
                                         currentArgs.append(partial);
+                                        String id = currentToolCallId.get();
+                                        if (id != null) {
+                                            emit(subscriber, new StreamEvent.ToolCallDelta(id, currentToolName.get(), partial), demand, cancelled);
+                                        }
                                     }
                                 }
                             }
@@ -449,21 +486,44 @@ public final class AnthropicProvider implements LlmClient {
                                 String stopReason = delta.path("stop_reason").asText(null);
                                 JsonNode usage = root.path("usage");
                                 int outputTokens = usage.path("output_tokens").asInt(0);
-                                subscriber.onNext(new StreamEvent.Finish(stopReason, 0, outputTokens));
+                                if (currentArgs.length() > 0 && currentToolCallId.get() != null) {
+                                    try {
+                                        Map<String, Object> args = objectMapper.readValue(currentArgs.toString(), java.util.HashMap.class);
+                                        emit(subscriber, new StreamEvent.ToolCallDone(currentToolCallId.get(), currentToolName.get(), args), demand, cancelled);
+                                    } catch (Exception e) {
+                                        emit(subscriber, new StreamEvent.ToolCallDone(currentToolCallId.get(), currentToolName.get(), Map.of()), demand, cancelled);
+                                    }
+                                }
+                                emit(subscriber, new StreamEvent.Finish(stopReason, 0, outputTokens), demand, cancelled);
                             }
                             case "message_stop" -> {
                                 // End of stream
                             }
                         }
                     } catch (JsonProcessingException e) {
-                        subscriber.onNext(new StreamEvent.Error("parse_error", e.getMessage(), false, null));
+                        emit(subscriber, new StreamEvent.Error("parse_error", e.getMessage(), false, null), demand, cancelled);
                     }
                 });
             } catch (IOException e) {
-                subscriber.onError(e);
+                if (!cancelled.get()) subscriber.onError(e);
             }
         }
 
+
+        private void emit(Flow.Subscriber<? super StreamEvent> subscriber, StreamEvent event, AtomicLong demand, AtomicBoolean cancelled) {
+            while (demand.get() <= 0 && !cancelled.get()) {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            if (!cancelled.get()) {
+                demand.decrementAndGet();
+                subscriber.onNext(event);
+            }
+        }
         private @NonNull HttpRequest buildHttpRequest(@NonNull ChatRequest request) throws JsonProcessingException {
             String body = buildRequestBody(request, objectMapper);
             return HttpRequest.newBuilder()

@@ -58,7 +58,10 @@ public final class OpenAiEmbeddingClient implements EmbeddingClient {
     @Override
     public @NonNull Result<float[], EmbeddingError> embed(@NonNull String text, @NonNull EmbedOptions options) {
         Result<List<float[]>, EmbeddingError> batch = embedBatch(List.of(text), options);
-        return batch.map(list -> list.get(0));
+        return batch.map(list -> {
+            if (list.isEmpty()) throw new IllegalStateException("Empty embedding response from provider");
+            return list.get(0);
+        });
     }
 
     @Override
@@ -98,10 +101,18 @@ public final class OpenAiEmbeddingClient implements EmbeddingClient {
 
                 if (response.statusCode() == 200) {
                     JsonNode root = objectMapper.readTree(response.body());
-                    ArrayNode data = (ArrayNode) root.get("data");
+                    JsonNode dataNode = root.get("data");
+                    if (dataNode == null || !dataNode.isArray()) {
+                        return Result.err(EmbeddingError.of("PARSE_ERROR", "Missing or invalid 'data' array", providerName));
+                    }
+                    ArrayNode data = (ArrayNode) dataNode;
                     List<float[]> results = new ArrayList<>(data.size());
                     for (JsonNode item : data) {
-                        ArrayNode arr = (ArrayNode) item.get("embedding");
+                        JsonNode embNode = item.get("embedding");
+                        if (embNode == null || !embNode.isArray()) {
+                            return Result.err(EmbeddingError.of("PARSE_ERROR", "Missing or invalid 'embedding' array", providerName));
+                        }
+                        ArrayNode arr = (ArrayNode) embNode;
                         float[] vec = new float[arr.size()];
                         for (int i = 0; i < arr.size(); i++) vec[i] = arr.get(i).floatValue();
                         if (options.normalize()) normalize(vec);

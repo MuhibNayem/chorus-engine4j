@@ -1,6 +1,7 @@
 package com.chorus.engine.rag.store;
 
 import com.chorus.engine.rag.document.Chunk;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -48,11 +49,19 @@ public final class QdrantVectorStore implements VectorStore {
                              @NonNull String collectionName,
                              @Nullable String apiKey,
                              @NonNull HttpClient httpClient) {
+        this(baseUrl, collectionName, apiKey, httpClient, new ObjectMapper());
+    }
+
+    public QdrantVectorStore(@NonNull String baseUrl,
+                             @NonNull String collectionName,
+                             @Nullable String apiKey,
+                             @NonNull HttpClient httpClient,
+                             @NonNull ObjectMapper objectMapper) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.collectionName = Objects.requireNonNull(collectionName);
         this.apiKey = apiKey;
         this.httpClient = httpClient;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
     }
 
     // ---- VectorStore implementation ----
@@ -267,7 +276,7 @@ public final class QdrantVectorStore implements VectorStore {
     private @NonNull Map<String, Object> parseMetadata(@Nullable JsonNode node) {
         if (node == null || node.isNull()) return Map.of();
         try {
-            return objectMapper.treeToValue(node, HashMap.class);
+            return objectMapper.treeToValue(node, new TypeReference<Map<String, Object>>() {});
         } catch (IOException e) {
             return Map.of();
         }

@@ -71,7 +71,7 @@ public final class TenantAwareVectorStore implements VectorStore {
 
     @Override
     public @NonNull String storeName() {
-        return "tenant_aware_" + isolation.level().name().toLowerCase();
+        return "tenant_aware_" + isolation.level().name().toLowerCase(Locale.ROOT);
     }
 
     private @NonNull VectorStore getStore(@NonNull String tenantId) {

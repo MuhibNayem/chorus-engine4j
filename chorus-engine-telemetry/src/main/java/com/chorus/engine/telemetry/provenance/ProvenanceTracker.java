@@ -40,6 +40,7 @@ public final class ProvenanceTracker {
     private final Map<String, ProvenanceEntry> byId = new ConcurrentHashMap<>();
     private final AtomicLong sequence = new AtomicLong(0);
     private final int maxEntries;
+    private final Object evictionLock = new Object();
 
     public ProvenanceTracker() {
         this(100_000);
@@ -175,10 +176,11 @@ public final class ProvenanceTracker {
     }
 
     private void evictIfNeeded() {
-        while (entries.size() > maxEntries && !entries.isEmpty()) {
-            ProvenanceEntry oldest = entries.get(0);
-            entries.remove(0);
-            byId.remove(oldest.id());
+        synchronized (evictionLock) {
+            while (entries.size() > maxEntries && !entries.isEmpty()) {
+                ProvenanceEntry oldest = entries.remove(0);
+                byId.remove(oldest.id());
+            }
         }
     }
 

@@ -79,7 +79,7 @@ public final class EpisodicMemory {
         return byId.get(id);
     }
 
-    public void incrementAccessCount(@NonNull String id) {
+    public synchronized void incrementAccessCount(@NonNull String id) {
         Episode ep = byId.get(id);
         if (ep != null) {
             episodes.remove(ep);

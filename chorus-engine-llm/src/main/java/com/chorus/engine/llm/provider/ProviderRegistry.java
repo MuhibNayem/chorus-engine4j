@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
  * Registry of configured LLM providers. Thread-safe.
  * Supports runtime addition/removal of providers for multi-tenant deployments.
  */
-public final class ProviderRegistry {
+public final class ProviderRegistry implements AutoCloseable {
 
     private final Map<String, LlmClient> providers = new ConcurrentHashMap<>();
     private final HttpClient httpClient;
@@ -55,26 +55,26 @@ public final class ProviderRegistry {
             name, baseUrl, apiKey, organization,
             httpClient, objectMapper,
             defaultRetryPolicy,
-            CircuitBreaker.defaults(),
+            defaultCircuitBreaker,
             Executors.newVirtualThreadPerTaskExecutor()
         ));
     }
 
     public void registerAnthropic(@NonNull String name, @NonNull String apiKey) {
         providers.put(name, new AnthropicProvider(
-            apiKey, httpClient, Duration.ofSeconds(120), defaultRetryPolicy
+            apiKey, httpClient, Duration.ofSeconds(120), defaultRetryPolicy, objectMapper, defaultCircuitBreaker
         ));
     }
 
     public void registerGemini(@NonNull String name, @NonNull String apiKey) {
         providers.put(name, new GeminiProvider(
-            apiKey, httpClient, Duration.ofSeconds(120), defaultRetryPolicy
+            apiKey, httpClient, Duration.ofSeconds(120), defaultRetryPolicy, objectMapper, defaultCircuitBreaker
         ));
     }
 
     public void registerVllm(@NonNull String name, @NonNull String baseUrl, @Nullable String apiKey) {
         providers.put(name, new VllmChatProvider(
-            baseUrl, apiKey, httpClient, Duration.ofSeconds(120), defaultRetryPolicy
+            baseUrl, apiKey, httpClient, Duration.ofSeconds(120), defaultRetryPolicy, objectMapper, defaultCircuitBreaker
         ));
     }
 
@@ -87,7 +87,7 @@ public final class ProviderRegistry {
             .connectTimeout(Duration.ofSeconds(30))
             .version(HttpClient.Version.HTTP_2)
             .build();
-        return new AnthropicProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT);
+        return new AnthropicProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, new ObjectMapper(), CircuitBreaker.defaults());
     }
 
     public static @NonNull LlmClient gemini(@NonNull String apiKey) {
@@ -95,7 +95,7 @@ public final class ProviderRegistry {
             .connectTimeout(Duration.ofSeconds(30))
             .version(HttpClient.Version.HTTP_2)
             .build();
-        return new GeminiProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT);
+        return new GeminiProvider(apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, new ObjectMapper(), CircuitBreaker.defaults());
     }
 
     public static @NonNull LlmClient vllm(@NonNull String baseUrl, @Nullable String apiKey) {
@@ -103,7 +103,7 @@ public final class ProviderRegistry {
             .connectTimeout(Duration.ofSeconds(30))
             .version(HttpClient.Version.HTTP_2)
             .build();
-        return new VllmChatProvider(baseUrl, apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT);
+        return new VllmChatProvider(baseUrl, apiKey, client, Duration.ofSeconds(120), RetryPolicy.DEFAULT, new ObjectMapper(), CircuitBreaker.defaults());
     }
 
     public @NonNull LlmClient get(@NonNull String name) {
@@ -124,18 +124,22 @@ public final class ProviderRegistry {
 
     public void remove(@NonNull String name) {
         LlmClient removed = providers.remove(name);
-        if (removed instanceof OpenAiProvider oap) {
-            oap.close();
-        } else if (removed instanceof AnthropicProvider ap) {
-            ap.close();
-        } else if (removed instanceof GeminiProvider gp) {
-            gp.close();
-        } else if (removed instanceof VllmChatProvider vp) {
-            vp.close();
+        if (removed instanceof AutoCloseable ac) {
+            try { ac.close(); } catch (Exception ignored) {}
         }
     }
 
     public @NonNull Map<String, LlmClient> all() {
         return Map.copyOf(providers);
+    }
+
+    @Override
+    public void close() {
+        for (LlmClient client : providers.values()) {
+            if (client instanceof AutoCloseable ac) {
+                try { ac.close(); } catch (Exception ignored) {}
+            }
+        }
+        providers.clear();
     }
 }

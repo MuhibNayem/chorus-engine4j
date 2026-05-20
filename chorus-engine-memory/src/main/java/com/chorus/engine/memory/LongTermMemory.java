@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class LongTermMemory {
 
-    private final List<MemoryDocument> documents = Collections.synchronizedList(new ArrayList<>());
+    private final List<MemoryDocument> documents = new ArrayList<>();
     private final Map<String, Double> idfCache = new ConcurrentHashMap<>();
     private final double k1;
     private final double b;
@@ -44,7 +44,7 @@ public final class LongTermMemory {
         this.semanticWeight = semanticWeight;
     }
 
-    public void store(@NonNull Message message, @NonNull String key, @Nullable Map<String, Object> metadata) {
+    public synchronized void store(@NonNull Message message, @NonNull String key, @Nullable Map<String, Object> metadata) {
         Objects.requireNonNull(message, "message");
         Objects.requireNonNull(key, "key");
         float[] embedding = computeEmbedding(message.content());
@@ -54,14 +54,15 @@ public final class LongTermMemory {
         recomputeStats();
     }
 
-    public @NonNull List<RetrievalResult> retrieve(@NonNull String query, int topK) {
+    public synchronized @NonNull List<RetrievalResult> retrieve(@NonNull String query, int topK) {
         Objects.requireNonNull(query, "query");
         if (documents.isEmpty()) return List.of();
 
         float[] queryEmbedding = computeEmbedding(query);
         Set<String> queryTerms = tokenize(query);
+        List<MemoryDocument> snapshot = List.copyOf(documents);
 
-        return documents.stream()
+        return snapshot.stream()
             .map(doc -> {
                 double bm25 = computeBm25(doc, queryTerms);
                 double semantic = (queryEmbedding != null && doc.embedding != null)
@@ -69,13 +70,13 @@ public final class LongTermMemory {
                 double score = bm25Weight * bm25 + semanticWeight * semantic;
                 return new RetrievalResult(doc.key, doc.message, score, bm25, semantic, doc.timestamp);
             })
-            .filter(r -> r.score >= 0.0)
+            .filter(r -> Double.isFinite(r.score) && r.score >= 0.0)
             .sorted(Comparator.comparingDouble(r -> -r.score))
             .limit(topK)
             .toList();
     }
 
-    public boolean delete(@NonNull String key) {
+    public synchronized boolean delete(@NonNull String key) {
         boolean removed = documents.removeIf(d -> d.key.equals(key));
         if (removed) recomputeStats();
         return removed;
@@ -90,7 +91,7 @@ public final class LongTermMemory {
         return r.isOk() ? r.unwrap() : null;
     }
 
-    private void recomputeStats() {
+    private synchronized void recomputeStats() {
         List<MemoryDocument> docs = List.copyOf(documents);
         if (docs.isEmpty()) { avgDocLength = 0.0; idfCache.clear(); return; }
 
@@ -109,11 +110,13 @@ public final class LongTermMemory {
         if (doc.terms.isEmpty()) return 0.0;
         double score = 0.0;
         int docLen = doc.terms.size();
+        double avgDl = avgDocLength;
+        if (avgDl <= 0.0) avgDl = 1.0;
         for (String term : queryTerms) {
             long tf = doc.termFreq.getOrDefault(term, 0L);
             if (tf == 0) continue;
             double idf = idfCache.getOrDefault(term, 0.0);
-            score += idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (docLen / avgDocLength)));
+            score += idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (docLen / avgDl)));
         }
         return score;
     }
@@ -126,7 +129,7 @@ public final class LongTermMemory {
     }
 
     private static @NonNull Set<String> tokenize(@NonNull String text) {
-        return Arrays.stream(text.toLowerCase().split("\\W+")).filter(s -> !s.isEmpty()).collect(java.util.stream.Collectors.toSet());
+        return Arrays.stream(text.toLowerCase(java.util.Locale.ROOT).split("\\W+")).filter(s -> !s.isEmpty()).collect(java.util.stream.Collectors.toSet());
     }
 
     private static final class MemoryDocument {

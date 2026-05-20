@@ -4,6 +4,7 @@ import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -21,13 +22,13 @@ public final class CircuitBreaker {
 
     public enum State { CLOSED, OPEN, HALF_OPEN }
 
+    private record StateSnapshot(State state, int failures, int successes, Instant openedAt, boolean probeInFlight) {}
+
     private final int failureThreshold;
     private final Duration openDuration;
-    private final AtomicInteger failureCount = new AtomicInteger(0);
-    private final AtomicInteger successCount = new AtomicInteger(0);
-    private final AtomicReference<State> state = new AtomicReference<>(State.CLOSED);
+    private final AtomicReference<StateSnapshot> snapshot = new AtomicReference<>(
+        new StateSnapshot(State.CLOSED, 0, 0, null, false));
     private volatile Instant lastFailureTime;
-    private volatile Instant openedAt;
 
     public CircuitBreaker(int failureThreshold, @NonNull Duration openDuration) {
         if (failureThreshold < 1) throw new IllegalArgumentException("failureThreshold must be >= 1");
@@ -40,26 +41,31 @@ public final class CircuitBreaker {
     }
 
     public @NonNull State state() {
-        if (state.get() == State.OPEN && Duration.between(openedAt, Instant.now()).compareTo(openDuration) > 0) {
-            // Try to transition to HALF_OPEN
-            state.compareAndSet(State.OPEN, State.HALF_OPEN);
+        StateSnapshot s = snapshot.get();
+        if (s.state == State.OPEN && s.openedAt != null
+                && Duration.between(s.openedAt, Instant.now()).compareTo(openDuration) > 0) {
+            transitionToHalfOpen();
         }
-        return state.get();
+        return snapshot.get().state;
+    }
+
+    private void transitionToHalfOpen() {
+        snapshot.updateAndGet(s ->
+            s.state == State.OPEN
+                ? new StateSnapshot(State.HALF_OPEN, s.failures, s.successes, s.openedAt, false)
+                : s);
     }
 
     /**
      * Record a successful call.
      */
     public void recordSuccess() {
-        if (state.get() == State.HALF_OPEN) {
-            // Reset on first success in half-open
-            failureCount.set(0);
-            successCount.incrementAndGet();
-            state.set(State.CLOSED);
-        } else {
-            successCount.incrementAndGet();
-            failureCount.set(0); // Reset failures on any success in closed state
-        }
+        snapshot.updateAndGet(s -> {
+            if (s.state == State.HALF_OPEN) {
+                return new StateSnapshot(State.CLOSED, 0, s.successes + 1, null, false);
+            }
+            return new StateSnapshot(s.state, 0, s.successes + 1, s.openedAt, s.probeInFlight);
+        });
     }
 
     /**
@@ -67,18 +73,16 @@ public final class CircuitBreaker {
      */
     public void recordFailure() {
         lastFailureTime = Instant.now();
-        int failures = failureCount.incrementAndGet();
-
-        if (state.get() == State.HALF_OPEN) {
-            // Failed probe → back to OPEN
-            openedAt = Instant.now();
-            state.set(State.OPEN);
-        } else if (failures >= failureThreshold) {
-            State current = state.get();
-            if (current == State.CLOSED && state.compareAndSet(State.CLOSED, State.OPEN)) {
-                openedAt = Instant.now();
+        snapshot.updateAndGet(s -> {
+            int newFailures = s.failures + 1;
+            if (s.state == State.HALF_OPEN) {
+                return new StateSnapshot(State.OPEN, newFailures, s.successes, Instant.now(), false);
             }
-        }
+            if (newFailures >= failureThreshold && s.state == State.CLOSED) {
+                return new StateSnapshot(State.OPEN, newFailures, s.successes, Instant.now(), s.probeInFlight);
+            }
+            return new StateSnapshot(s.state, newFailures, s.successes, s.openedAt, s.probeInFlight);
+        });
     }
 
     /**
@@ -86,7 +90,19 @@ public final class CircuitBreaker {
      */
     public boolean allowsRequest() {
         State s = state();
-        return s == State.CLOSED || s == State.HALF_OPEN;
+        if (s == State.CLOSED) return true;
+        if (s == State.HALF_OPEN) {
+            AtomicBoolean acquired = new AtomicBoolean(false);
+            snapshot.updateAndGet(cur -> {
+                if (cur.state == State.HALF_OPEN && !cur.probeInFlight) {
+                    acquired.set(true);
+                    return new StateSnapshot(cur.state, cur.failures, cur.successes, cur.openedAt, true);
+                }
+                return cur;
+            });
+            return acquired.get();
+        }
+        return false;
     }
 
     public boolean isOpen() {
@@ -94,11 +110,12 @@ public final class CircuitBreaker {
     }
 
     public int failureCount() {
-        return failureCount.get();
+        return snapshot.get().failures;
     }
 
     public @NonNull String metrics() {
+        StateSnapshot s = snapshot.get();
         return String.format("CircuitBreaker[state=%s, failures=%d, successes=%d, threshold=%d]",
-            state(), failureCount.get(), successCount.get(), failureThreshold);
+            s.state, s.failures, s.successes, failureThreshold);
     }
 }

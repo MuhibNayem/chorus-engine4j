@@ -1,18 +1,31 @@
 package com.chorus.engine.memory;
 
 import com.chorus.engine.core.context.Message;
+import com.chorus.engine.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.*;
 
 class ContextCompactorTest {
 
+    private static Tokenizer fakeTokenizer(int tokensPerMessage) {
+        return new Tokenizer() {
+            @Override public java.util.List<Integer> encode(String text) { return List.of(); }
+            @Override public String decode(java.util.List<Integer> tokens) { return ""; }
+            @Override public int countTokens(String text) { return tokensPerMessage; }
+            @Override public int countChatTokens(String role, String content) { return tokensPerMessage; }
+            @Override public String name() { return "fake"; }
+            @Override public int vocabularySize() { return -1; }
+        };
+    }
+
     @Test
     void summarizeReducesMessages() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(10, fakeTokenizer(5));
         List<Message> history = List.of(
             Message.system("You are helpful"),
             Message.user("Hello"),
@@ -31,7 +44,7 @@ class ContextCompactorTest {
 
     @Test
     void summarizeEmptyMessageList() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(10, fakeTokenizer(5));
         List<Message> history = List.of();
 
         ContextCompactor.CompactionResult result = compactor.summarize(history, msgs -> "summary");
@@ -42,7 +55,7 @@ class ContextCompactorTest {
 
     @Test
     void summarizeShortHistoryReturnsOriginal() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         List<Message> history = List.of(
             Message.user("Hello"),
             Message.assistant("Hi")
@@ -56,7 +69,7 @@ class ContextCompactorTest {
 
     @Test
     void selectiveRetentionKeepsRelevantMessages() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(10, fakeTokenizer(5));
         List<Message> history = List.of(
             Message.system("You are helpful"),
             Message.user("Tell me about Java"),
@@ -69,7 +82,7 @@ class ContextCompactorTest {
 
         ContextCompactor.CompactionResult result = compactor.selectiveRetention(
             history, "Java",
-            (msg, query) -> msg.content().toLowerCase().contains(query.toLowerCase()) ? 1.0 : 0.0
+            (msg, query) -> msg.content().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT)) ? 1.0 : 0.0
         );
 
         assertThat(result.messages()).hasSizeGreaterThanOrEqualTo(3); // system + at least 2 scored
@@ -78,7 +91,7 @@ class ContextCompactorTest {
 
     @Test
     void selectiveRetentionShortHistoryReturnsOriginal() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         List<Message> history = List.of(
             Message.user("Hello"),
             Message.assistant("Hi"),
@@ -96,35 +109,35 @@ class ContextCompactorTest {
 
     @Test
     void summarizeNullHistoryThrows() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         assertThatThrownBy(() -> compactor.summarize(null, msgs -> ""))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void summarizeNullSummarizerThrows() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         assertThatThrownBy(() -> compactor.summarize(List.of(), null))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void selectiveRetentionNullHistoryThrows() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         assertThatThrownBy(() -> compactor.selectiveRetention(null, "q", (m, q) -> 1.0))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void selectiveRetentionNullQueryThrows() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         assertThatThrownBy(() -> compactor.selectiveRetention(List.of(), null, (m, q) -> 1.0))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void selectiveRetentionNullScorerThrows() {
-        ContextCompactor compactor = new ContextCompactor(100);
+        ContextCompactor compactor = new ContextCompactor(100, fakeTokenizer(5));
         assertThatThrownBy(() -> compactor.selectiveRetention(List.of(), "q", null))
             .isInstanceOf(NullPointerException.class);
     }

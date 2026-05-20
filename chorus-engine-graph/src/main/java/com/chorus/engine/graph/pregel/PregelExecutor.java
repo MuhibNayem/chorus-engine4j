@@ -240,18 +240,21 @@ public final class PregelExecutor<S> {
             // Compute next nodes before interrupt-after check so pending nodes are preserved
             Set<String> computedNext = computeNextNodes(nextNodes, currentState, token, eventSink);
 
+            // Advance sequence before checkpoints so both interrupt-after and normal
+            // checkpoints use a consistent post-step sequence number.
+            Set<String> executedNodes = new LinkedHashSet<>(nextNodes);
+            nextNodes = computedNext;
+            sequence++;
+            isResume = false;
+
             // Interrupt-after check
-            for (String node : nextNodes) {
+            for (String node : executedNodes) {
                 if (interruptAfter.contains(node)) {
-                    checkpointer.save(threadId, sequence, currentState, new ArrayList<>(computedNext));
+                    checkpointer.save(threadId, sequence, currentState, new ArrayList<>(nextNodes));
                     eventSink.accept(new GraphEvent.CheckpointSaved<>(threadId, sequence, currentState));
                     return;
                 }
             }
-
-            nextNodes = computedNext;
-            sequence++;
-            isResume = false;
 
             // Checkpoint
             checkpointer.save(threadId, sequence, currentState, new ArrayList<>(nextNodes));

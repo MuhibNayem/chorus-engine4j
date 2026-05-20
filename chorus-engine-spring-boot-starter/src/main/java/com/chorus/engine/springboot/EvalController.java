@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -60,7 +61,7 @@ public class EvalController {
     }
 
     private EvalScorer resolveScorer(String type) {
-        return switch (type != null ? type.toLowerCase() : "exact_match") {
+        return switch (type != null ? type.toLowerCase(Locale.ROOT) : "exact_match") {
             case "llm_judge" -> new LlmJudgeScorer(llmClient, "judge-model", 0.7);
             default -> new ExactMatchScorer();
         };

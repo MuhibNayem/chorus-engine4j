@@ -29,6 +29,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -54,13 +55,15 @@ public final class GeminiProvider implements LlmClient {
         @NonNull String apiKey,
         @NonNull HttpClient httpClient,
         @NonNull Duration timeout,
-        @NonNull RetryPolicy retryPolicy
+        @NonNull RetryPolicy retryPolicy,
+        @NonNull ObjectMapper objectMapper,
+        @NonNull CircuitBreaker circuitBreaker
     ) {
         this.apiKey = apiKey;
         this.httpClient = httpClient;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
         this.retryPolicy = retryPolicy;
-        this.circuitBreaker = CircuitBreaker.defaults();
+        this.circuitBreaker = circuitBreaker;
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.timeout = timeout;
     }
@@ -69,8 +72,13 @@ public final class GeminiProvider implements LlmClient {
     public Flow.@NonNull Publisher<StreamEvent> stream(@NonNull ChatRequest request, @NonNull CancellationToken cancellationToken) {
         if (closed.get()) throw new IllegalStateException("Provider is closed");
         if (!circuitBreaker.allowsRequest()) {
-            return subscriber -> subscriber.onError(
-                new RuntimeException("Circuit breaker is OPEN for provider gemini"));
+            return subscriber -> {
+                subscriber.onSubscribe(new Flow.Subscription() {
+                    @Override public void request(long n) {}
+                    @Override public void cancel() {}
+                });
+                subscriber.onError(new RuntimeException("Circuit breaker is OPEN for provider gemini"));
+            };
         }
         return new GeminiStreamPublisher(request, cancellationToken);
     }
@@ -135,7 +143,7 @@ public final class GeminiProvider implements LlmClient {
         });
 
         try {
-            return future.get(request.maxTokens() * 2L, TimeUnit.MILLISECONDS);
+            return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             throw new RuntimeException("LLM request timed out", e);
         } catch (Exception e) {
@@ -155,6 +163,14 @@ public final class GeminiProvider implements LlmClient {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                executor.shutdownNow();
+            }
         }
     }
 
@@ -332,28 +348,42 @@ public final class GeminiProvider implements LlmClient {
 
         @Override
         public void subscribe(Flow.Subscriber<? super StreamEvent> subscriber) {
-            executor.submit(() -> {
-                try {
-                    subscriber.onSubscribe(new Flow.Subscription() {
-                        private final AtomicBoolean cancelled = new AtomicBoolean(false);
-                        @Override public void request(long n) {}
-                        @Override public void cancel() { cancelled.set(true); }
+            AtomicBoolean cancelled = new AtomicBoolean(false);
+            AtomicLong demand = new AtomicLong(0);
+            subscriber.onSubscribe(new Flow.Subscription() {
+                @Override public void request(long n) {
+                    if (n <= 0) {
+                        cancelled.set(true);
+                        subscriber.onError(new IllegalArgumentException("Non-positive demand"));
+                        return;
+                    }
+                    demand.getAndUpdate(d -> {
+                        long sum = d + n;
+                        return sum < 0 ? Long.MAX_VALUE : sum;
                     });
-
-                    executeWithRetry(subscriber);
-                    subscriber.onComplete();
-                } catch (Exception e) {
-                    subscriber.onError(e);
                 }
+                @Override public void cancel() { cancelled.set(true); }
             });
+            try {
+                executor.submit(() -> {
+                    try {
+                        executeWithRetry(subscriber, cancelled, demand);
+                        if (!cancelled.get()) subscriber.onComplete();
+                    } catch (Exception e) {
+                        if (!cancelled.get()) subscriber.onError(e);
+                    }
+                });
+            } catch (Exception e) {
+                if (!cancelled.get()) subscriber.onError(e);
+            }
         }
 
-        private void executeWithRetry(Flow.Subscriber<? super StreamEvent> subscriber) throws Exception {
+        private void executeWithRetry(Flow.Subscriber<? super StreamEvent> subscriber, AtomicBoolean cancelled, AtomicLong demand) throws Exception {
             int attempt = 0;
             Exception lastError = null;
 
             while (attempt < retryPolicy.maxAttempts()) {
-                if (cancellationToken.isCancelled()) {
+                if (cancelled.get() || cancellationToken.isCancelled()) {
                     throw new CancellationException("Request cancelled: " + cancellationToken.reason());
                 }
 
@@ -364,7 +394,9 @@ public final class GeminiProvider implements LlmClient {
 
                     if (response.statusCode() == 200) {
                         circuitBreaker.recordSuccess();
-                        parseSseStream(response.body(), subscriber, start);
+                        try (InputStream bodyStream = response.body()) {
+                            parseSseStream(bodyStream, subscriber, start, cancelled, demand);
+                        }
                         return;
                     }
 
@@ -391,12 +423,12 @@ public final class GeminiProvider implements LlmClient {
             throw lastError != null ? lastError : new RuntimeException("Max retries exceeded");
         }
 
-        private void parseSseStream(InputStream stream, Flow.Subscriber<? super StreamEvent> subscriber, Instant start) {
+        private void parseSseStream(InputStream stream, Flow.Subscriber<? super StreamEvent> subscriber, Instant start, AtomicBoolean cancelled, AtomicLong demand) {
             SseParser parser = new SseParser(stream);
 
             try {
                 parser.parse(event -> {
-                    if (cancellationToken.isCancelled()) return;
+                    if (cancelled.get() || cancellationToken.isCancelled()) return;
                     if ("[DONE]".equals(event.data().trim())) return;
 
                     try {
@@ -409,12 +441,13 @@ public final class GeminiProvider implements LlmClient {
                             if (parts.isArray()) {
                                 for (JsonNode part : parts) {
                                     if (part.has("text")) {
-                                        subscriber.onNext(new StreamEvent.Token(part.path("text").asText(""), 0, null));
+                                        emit(subscriber, new StreamEvent.Token(part.path("text").asText(""), 0, null), demand, cancelled);
                                     }
                                     if (part.has("functionCall")) {
                                         JsonNode fc = part.path("functionCall");
                                         String name = fc.path("name").asText("");
-                                        subscriber.onNext(new StreamEvent.ToolCallStart(name, name, Map.of()));
+                                        String id = fc.path("name").asText("");
+                                        emit(subscriber, new StreamEvent.ToolCallStart(id, name, Map.of()), demand, cancelled);
                                     }
                                 }
                             }
@@ -424,18 +457,33 @@ public final class GeminiProvider implements LlmClient {
                                 JsonNode usage = root.path("usageMetadata");
                                 int promptTokens = usage.path("promptTokenCount").asInt(0);
                                 int completionTokens = usage.path("candidatesTokenCount").asInt(0);
-                                subscriber.onNext(new StreamEvent.Finish(finishReason, promptTokens, completionTokens));
+                                emit(subscriber, new StreamEvent.Finish(finishReason, promptTokens, completionTokens), demand, cancelled);
                             }
                         }
                     } catch (JsonProcessingException e) {
-                        subscriber.onNext(new StreamEvent.Error("parse_error", e.getMessage(), false, null));
+                        emit(subscriber, new StreamEvent.Error("parse_error", e.getMessage(), false, null), demand, cancelled);
                     }
                 });
             } catch (IOException e) {
-                subscriber.onError(e);
+                if (!cancelled.get()) subscriber.onError(e);
             }
         }
 
+
+        private void emit(Flow.Subscriber<? super StreamEvent> subscriber, StreamEvent event, AtomicLong demand, AtomicBoolean cancelled) {
+            while (demand.get() <= 0 && !cancelled.get()) {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            if (!cancelled.get()) {
+                demand.decrementAndGet();
+                subscriber.onNext(event);
+            }
+        }
         private @NonNull HttpRequest buildHttpRequest(@NonNull ChatRequest request) throws JsonProcessingException {
             String body = buildRequestBody(request, objectMapper);
             String uri = BASE_URL + "/" + request.model() + ":streamGenerateContent?alt=sse&key=" + apiKey;

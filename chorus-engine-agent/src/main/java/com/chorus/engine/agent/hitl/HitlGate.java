@@ -41,6 +41,21 @@ public final class HitlGate {
         @NonNull Map<String, Object> arguments,
         @Nullable Duration timeout
     ) {
+        return requestApprovalForGate(
+            runId + ":" + toolName + ":" + System.nanoTime(),
+            runId, toolName, arguments, timeout);
+    }
+
+    /**
+     * Request approval using a caller-supplied gate ID so the emitted event and gate share the same key.
+     */
+    public @NonNull Result<HitlDecision, HitlError> requestApprovalForGate(
+        @NonNull String gateId,
+        @NonNull String runId,
+        @NonNull String toolName,
+        @NonNull Map<String, Object> arguments,
+        @Nullable Duration timeout
+    ) {
         if (disposed.get()) {
             return Result.err(new HitlError("GATE_DISPOSED", "HITL gate has been disposed", true));
         }
@@ -49,7 +64,6 @@ public final class HitlGate {
             return Result.ok(HitlDecision.APPROVE_SESSION);
         }
 
-        String gateId = runId + ":" + toolName + ":" + System.nanoTime();
         PendingGate gate = new PendingGate(gateId, runId, toolName, arguments, Instant.now());
         gates.put(gateId, gate);
 

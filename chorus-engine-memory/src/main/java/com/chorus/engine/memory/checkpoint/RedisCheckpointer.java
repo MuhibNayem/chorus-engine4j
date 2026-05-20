@@ -69,18 +69,21 @@ public final class RedisCheckpointer implements Checkpointer {
         String tKey = threadKey(runId);
 
         try (Jedis jedis = jedisPool.getResource()) {
-            List<String> members = jedis.zrevrange(tKey, 0, -1);
-            for (String seqStr : members) {
-                String ckKey = checkpointKey(runId, Long.parseLong(seqStr));
-                Map<String, String> fields = jedis.hgetAll(ckKey);
-                if (!fields.isEmpty()) {
-                    String json = fields.get("state_json");
-                    if (json != null) {
-                        return Result.ok(serializer.deserialize(json));
-                    }
-                }
+            List<String> members = jedis.zrevrange(tKey, 0, 0);
+            if (members.isEmpty()) {
+                return Result.err(Checkpointer.CheckpointError.of("NOT_FOUND", "No checkpoints for run: " + runId));
             }
-            return Result.err(Checkpointer.CheckpointError.of("NOT_FOUND", "No checkpoints for run: " + runId));
+            String seqStr = members.get(0);
+            String ckKey = checkpointKey(runId, Long.parseLong(seqStr));
+            Map<String, String> fields = jedis.hgetAll(ckKey);
+            if (fields.isEmpty()) {
+                return Result.err(Checkpointer.CheckpointError.of("NOT_FOUND", "No checkpoints for run: " + runId));
+            }
+            String json = fields.get("state_json");
+            if (json == null) {
+                return Result.err(Checkpointer.CheckpointError.of("NOT_FOUND", "No checkpoints for run: " + runId));
+            }
+            return Result.ok(serializer.deserialize(json));
         } catch (Exception e) {
             return Result.err(Checkpointer.CheckpointError.of("LOAD_FAILED", "Failed to load latest checkpoint from Redis", e));
         }

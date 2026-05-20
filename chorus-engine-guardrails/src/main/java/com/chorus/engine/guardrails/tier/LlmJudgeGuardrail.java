@@ -6,9 +6,10 @@ import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Tier 3 guardrail using LLM-as-judge.
@@ -23,12 +24,22 @@ public final class LlmJudgeGuardrail implements Guardrail {
     private final String policyDescription;
     private final double blockThreshold;
     private final LlmJudgeClient client;
-    private final ConcurrentHashMap<String, GuardrailResult> cache;
+    private final Map<String, GuardrailResult> cache;
 
     public interface LlmJudgeClient {
         @NonNull JudgeResult judge(@NonNull String input, @NonNull String policy);
 
         record JudgeResult(boolean violatesPolicy, double confidence, @NonNull String reasoning) {}
+
+        /**
+         * Parses a verdict from a raw LLM response string using exact token matching.
+         * Returns {@code true} only when the explicit verdict token "UNSAFE" appears as a
+         * standalone word, preventing false positives from phrases like "not unsafe".
+         */
+        static boolean parseVerdictFromResponse(@NonNull String response) {
+            String normalized = response.trim().toUpperCase();
+            return normalized.matches("(?s).*\\bUNSAFE\\b.*") && !normalized.matches("(?s).*\\bNOT\\s+UNSAFE\\b.*");
+        }
     }
 
     public LlmJudgeGuardrail(
@@ -42,7 +53,13 @@ public final class LlmJudgeGuardrail implements Guardrail {
         this.policyDescription = policyDescription;
         this.blockThreshold = blockThreshold;
         this.client = client;
-        this.cache = new ConcurrentHashMap<>(cacheSize);
+        final int maxSize = Math.max(1, cacheSize);
+        this.cache = Collections.synchronizedMap(new LinkedHashMap<>(maxSize, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, GuardrailResult> eldest) {
+                return size() > maxSize;
+            }
+        });
     }
 
     @Override
@@ -80,6 +97,7 @@ public final class LlmJudgeGuardrail implements Guardrail {
     }
 
     private @NonNull String hash(@NonNull String input) {
-        return Integer.toHexString(input.hashCode());
+        long h = input.hashCode() ^ ((long) input.length() << 32);
+        return Long.toHexString(h);
     }
 }

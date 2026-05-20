@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Token-aware short-term memory with LRU eviction.
@@ -24,7 +25,7 @@ public final class ShortTermMemory {
     private final int maxMessages;
     private final Deque<MemoryEntry> entries = new ConcurrentLinkedDeque<>();
     private final Map<String, MemoryEntry> byId = new ConcurrentHashMap<>();
-    private volatile int currentTokens = 0;
+    private final AtomicInteger currentTokens = new AtomicInteger(0);
 
     public ShortTermMemory(int maxTokens, int maxMessages) {
         this.maxTokens = maxTokens;
@@ -37,7 +38,7 @@ public final class ShortTermMemory {
         MemoryEntry entry = new MemoryEntry(id, message, tokenCount, Instant.now());
         entries.addLast(entry);
         byId.put(id, entry);
-        currentTokens += tokenCount;
+        currentTokens.addAndGet(tokenCount);
         evictIfNeeded();
     }
 
@@ -62,11 +63,11 @@ public final class ShortTermMemory {
     public void clear() {
         entries.clear();
         byId.clear();
-        currentTokens = 0;
+        currentTokens.set(0);
     }
 
     public int currentTokens() {
-        return currentTokens;
+        return currentTokens.get();
     }
 
     public int size() {
@@ -93,22 +94,22 @@ public final class ShortTermMemory {
     }
 
     private @NonNull Set<String> tokenize(@NonNull String text) {
-        return Set.of(text.toLowerCase().split("\\s+"));
+        return Set.of(text.toLowerCase(java.util.Locale.ROOT).split("\\s+"));
     }
 
     private void evictIfNeeded() {
-        while (currentTokens > maxTokens && !entries.isEmpty()) {
+        while (currentTokens.get() > maxTokens && !entries.isEmpty()) {
             MemoryEntry oldest = entries.pollFirst();
             if (oldest != null) {
                 byId.remove(oldest.id);
-                currentTokens -= oldest.tokenCount;
+                currentTokens.addAndGet(-oldest.tokenCount);
             }
         }
         while (entries.size() > maxMessages && !entries.isEmpty()) {
             MemoryEntry oldest = entries.pollFirst();
             if (oldest != null) {
                 byId.remove(oldest.id);
-                currentTokens -= oldest.tokenCount;
+                currentTokens.addAndGet(-oldest.tokenCount);
             }
         }
     }

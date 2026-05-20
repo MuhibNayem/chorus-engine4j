@@ -88,6 +88,34 @@ class SseParserTest {
     }
 
     @Test
+    void parseLine_parses_data_without_space() {
+        var result = SseParser.parseLine("data:hello");
+        assertThat(result.isOk()).isTrue();
+        assertThat(result.unwrap().data()).isEqualTo("hello");
+    }
+
+    @Test
+    void parse_preserves_intentional_leading_space_in_data() throws Exception {
+        String sse = "data:  hello\n\n"; // two spaces after colon
+        SseParser parser = new SseParser(new ByteArrayInputStream(sse.getBytes(StandardCharsets.UTF_8)));
+        List<SseParser.SseEvent> events = new ArrayList<>();
+        parser.parse(events::add);
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).data()).isEqualTo(" hello"); // only first space stripped
+    }
+
+    @Test
+    void parse_handles_id_without_space() throws Exception {
+        String sse = "id:abc\ndata:hello\n\n";
+        SseParser parser = new SseParser(new ByteArrayInputStream(sse.getBytes(StandardCharsets.UTF_8)));
+        List<SseParser.SseEvent> events = new ArrayList<>();
+        parser.parse(events::add);
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).id()).isEqualTo("abc");
+        assertThat(events.get(0).data()).isEqualTo("hello");
+    }
+
+    @Test
     void parseLine_ignores_comments() {
         var result = SseParser.parseLine(": comment");
         assertThat(result.isErr()).isTrue();

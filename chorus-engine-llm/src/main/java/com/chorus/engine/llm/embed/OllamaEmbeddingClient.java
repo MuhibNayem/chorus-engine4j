@@ -43,7 +43,10 @@ public final class OllamaEmbeddingClient implements EmbeddingClient {
 
     @Override
     public @NonNull Result<float[], EmbeddingError> embed(@NonNull String text, @NonNull EmbedOptions options) {
-        return embedBatch(List.of(text), options).map(list -> list.get(0));
+        return embedBatch(List.of(text), options).map(list -> {
+            if (list.isEmpty()) throw new IllegalStateException("Empty embedding response from provider");
+            return list.get(0);
+        });
     }
 
     @Override
@@ -67,7 +70,11 @@ public final class OllamaEmbeddingClient implements EmbeddingClient {
 
             if (response.statusCode() == 200) {
                 JsonNode root = objectMapper.readTree(response.body());
-                ArrayNode embeddings = (ArrayNode) root.get("embeddings");
+                JsonNode embeddingsNode = root.get("embeddings");
+                if (embeddingsNode == null || !embeddingsNode.isArray()) {
+                    return Result.err(EmbeddingError.of("PARSE_ERROR", "Missing or invalid 'embeddings' array", providerName()));
+                }
+                ArrayNode embeddings = (ArrayNode) embeddingsNode;
                 List<float[]> results = new ArrayList<>();
                 for (JsonNode emb : embeddings) {
                     float[] vec = jsonToFloatArray(emb);

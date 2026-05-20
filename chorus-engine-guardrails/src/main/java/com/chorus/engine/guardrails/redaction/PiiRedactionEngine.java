@@ -53,11 +53,18 @@ public final class PiiRedactionEngine {
             }
         }
 
-        // Sort by position descending and apply redactions
-        matches.sort((a, b) -> Integer.compare(b.end, a.end));
+        // Sort by start position ascending
+        matches.sort((a, b) -> Integer.compare(a.start, b.start));
+
+        // Apply replacements right-to-left so earlier positions are unaffected
         StringBuilder result = new StringBuilder(input);
-        for (RedactionMatch match : matches) {
+        int lastStart = Integer.MAX_VALUE;
+        for (int i = matches.size() - 1; i >= 0; i--) {
+            RedactionMatch match = matches.get(i);
+            // Skip if this match overlaps with a previously applied match to the right
+            if (match.end > lastStart) continue;
             result.replace(match.start, match.end, match.replacement());
+            lastStart = match.start;
         }
 
         return new RedactionResult(result.toString(), List.copyOf(matches));

@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.Objects;
 import java.util.concurrent.Flow;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -102,6 +103,14 @@ public final class AgentLoop {
         if (closed.compareAndSet(false, true)) {
             hitlGate.dispose();
             executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -113,6 +122,10 @@ public final class AgentLoop {
         private final List<ToolDefinition> tools;
         private final CancellationToken cancellationToken;
 
+        // Flow signal serialization: ensures onNext/onComplete/onError are never concurrent
+        private final Object terminalLock = new Object();
+        private int terminalState = 0; // 0=active, 1=complete, 2=error
+
         AgentRunPublisher(String runId, String userInput, List<ToolDefinition> tools, CancellationToken cancellationToken) {
             this.runId = runId;
             this.userInput = userInput;
@@ -122,16 +135,16 @@ public final class AgentLoop {
 
         @Override
         public void subscribe(Flow.Subscriber<? super AgentEvent> subscriber) {
+            subscriber.onSubscribe(new Flow.Subscription() {
+                @Override public void request(long n) {}
+                @Override public void cancel() { cancellationToken.cancel("Subscriber cancelled"); }
+            });
             executor.submit(() -> {
                 try {
-                    subscriber.onSubscribe(new Flow.Subscription() {
-                        @Override public void request(long n) {}
-                        @Override public void cancel() { cancellationToken.cancel("Subscriber cancelled"); }
-                    });
                     execute(subscriber);
-                    subscriber.onComplete();
+                    complete(subscriber);
                 } catch (Exception e) {
-                    subscriber.onError(e);
+                    error(subscriber, e);
                 }
             });
         }
@@ -155,11 +168,11 @@ public final class AgentLoop {
                 }
             }
 
-            // extra system prompt
+            // extra system prompt — extend whatever content beforeRound already built
             for (Middleware mw : middlewares) {
                 Result<String, Middleware.MiddlewareError> r = mw.extraSystemPrompt(runId, List.copyOf(history), Map.of());
                 if (r.isOk() && !r.unwrap().isBlank()) {
-                    history.set(0, Message.system(systemPrompt + "\n\n" + r.unwrap()));
+                    history.set(0, Message.system(history.get(0).content() + "\n\n" + r.unwrap()));
                 }
             }
 
@@ -178,12 +191,16 @@ public final class AgentLoop {
                         new TokenCount(maxTokens * 2, maxTokens, "unknown")
                     );
                     if (r.isOk() && !r.unwrap().compactedHistory().isEmpty()) {
+                        int tokensBefore = totalInputTokens.get();
                         history.clear();
                         history.add(Message.system(systemPrompt));
                         history.addAll(r.unwrap().compactedHistory());
+                        int tokensAfter = r.unwrap().compactedHistory().stream()
+                            .mapToInt(m -> m.content().length() / 4)
+                            .sum();
                         emit(subscriber, new AgentEvent.CompactionTriggered(
                             runId, Instant.now(), currentRound,
-                            totalInputTokens.get(), totalInputTokens.get(), "middleware"
+                            tokensBefore, tokensAfter, "middleware"
                         ));
                     }
                 }
@@ -251,7 +268,7 @@ public final class AgentLoop {
                 });
 
                 try {
-                    streamFuture.get(maxTokens * 2L, TimeUnit.MILLISECONDS);
+                    streamFuture.get(5, TimeUnit.MINUTES);
                 } catch (TimeoutException e) {
                     emit(subscriber, new AgentEvent.Error(runId, Instant.now(), "TIMEOUT", "LLM stream timed out", null, false));
                     break;
@@ -267,8 +284,8 @@ public final class AgentLoop {
 
                 // Handle tool calls
                 if (!toolCalls.isEmpty()) {
-                    List<Message> toolResults = executeToolsParallel(subscriber, toolCalls, currentRound);
                     history.add(Message.assistant(assistantContent.toString()));
+                    List<Message> toolResults = executeToolsParallel(subscriber, toolCalls, currentRound);
                     history.addAll(toolResults);
                 } else {
                     history.add(Message.assistant(assistantContent.toString()));
@@ -291,6 +308,7 @@ public final class AgentLoop {
             if (roundIndex.get() >= maxRounds) {
                 emit(subscriber, new AgentEvent.Error(runId, Instant.now(), "MAX_ROUNDS",
                     "Reached max rounds: " + maxRounds, null, false));
+                return;
             }
 
             String finalAnswer = history.stream()
@@ -309,25 +327,29 @@ public final class AgentLoop {
             @NonNull List<ChatResponse.ToolCall> toolCalls,
             long roundIndex
         ) {
-            List<Message> results = Collections.synchronizedList(new ArrayList<>());
+            List<ChatResponse.ToolCall> toolCallsCopy = List.copyOf(toolCalls);
+            Message[] results = new Message[toolCallsCopy.size()];
 
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (ChatResponse.ToolCall tc : toolCalls) {
+            for (int i = 0; i < toolCallsCopy.size(); i++) {
+                final int index = i;
+                final ChatResponse.ToolCall tc = toolCallsCopy.get(i);
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    // HITL check
+                    // HITL check — gate ID generated here so emitted event and gate share the same ID
                     if (hitlGate != null && isSensitiveTool(tc.toolName())) {
+                        String gateId = runId + ":" + tc.toolName() + ":" + System.nanoTime();
                         emit(subscriber, new AgentEvent.HitlRequested(runId, Instant.now(),
-                            runId + ":" + tc.toolName(), tc.toolName(), tc.arguments(), 300_000));
-                        Result<HitlDecision, HitlGate.HitlError> decision = hitlGate.requestApproval(
-                            runId, tc.toolName(), tc.arguments(), null);
+                            gateId, tc.toolName(), tc.arguments(), 300_000));
+                        Result<HitlDecision, HitlGate.HitlError> decision = hitlGate.requestApprovalForGate(
+                            gateId, runId, tc.toolName(), tc.arguments(), null);
                         if (decision.isErr() || decision.unwrap() == HitlDecision.REJECT) {
                             emit(subscriber, new AgentEvent.HitlResolved(runId, Instant.now(),
-                                runId + ":" + tc.toolName(), com.chorus.engine.core.event.AgentEvent.HitlDecision.REJECT, "Rejected or timed out"));
-                            results.add(Message.tool("Tool call rejected by human operator", tc.id()));
+                                gateId, com.chorus.engine.core.event.AgentEvent.HitlDecision.REJECT, "Rejected or timed out"));
+                            results[index] = Message.tool("Tool call rejected by human operator", tc.id());
                             return;
                         }
                         emit(subscriber, new AgentEvent.HitlResolved(runId, Instant.now(),
-                            runId + ":" + tc.toolName(), com.chorus.engine.core.event.AgentEvent.HitlDecision.APPROVE, null));
+                            gateId, com.chorus.engine.core.event.AgentEvent.HitlDecision.APPROVE, null));
                     }
 
                     emit(subscriber, new AgentEvent.ToolCallStart(runId, Instant.now(),
@@ -342,22 +364,27 @@ public final class AgentLoop {
                         tc.toolName(), result, duration, roundIndex));
 
                     String resultJson = result instanceof String s ? s : result.toString();
-                    results.add(Message.tool(resultJson, tc.id()));
+                    results[index] = Message.tool(resultJson, tc.id());
                 });
                 futures.add(future);
             }
 
-            try {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            } catch (Exception e) {
-                for (ChatResponse.ToolCall tc : toolCalls) {
+            // Wait for all futures; fill in errors for futures that actually failed
+            for (int i = 0; i < futures.size(); i++) {
+                ChatResponse.ToolCall tc = toolCallsCopy.get(i);
+                try {
+                    futures.get(i).join();
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() != null ? e.getCause() : e;
                     emit(subscriber, new AgentEvent.ToolCallError(runId, Instant.now(),
-                        tc.toolName(), e.getMessage(), false, roundIndex));
-                    results.add(Message.tool("Error: " + e.getMessage(), tc.id()));
+                        tc.toolName(), cause.getMessage(), false, roundIndex));
+                    if (results[i] == null) {
+                        results[i] = Message.tool("Error: " + cause.getMessage(), tc.id());
+                    }
                 }
             }
 
-            return List.copyOf(results);
+            return Arrays.asList(results);
         }
 
         private boolean isSensitiveTool(@NonNull String toolName) {
@@ -366,7 +393,29 @@ public final class AgentLoop {
         }
 
         private void emit(Flow.Subscriber<? super AgentEvent> subscriber, AgentEvent event) {
-            subscriber.onNext(event);
+            synchronized (terminalLock) {
+                if (terminalState == 0) {
+                    subscriber.onNext(event);
+                }
+            }
+        }
+
+        private void complete(Flow.Subscriber<? super AgentEvent> subscriber) {
+            synchronized (terminalLock) {
+                if (terminalState == 0) {
+                    terminalState = 1;
+                    subscriber.onComplete();
+                }
+            }
+        }
+
+        private void error(Flow.Subscriber<? super AgentEvent> subscriber, Throwable t) {
+            synchronized (terminalLock) {
+                if (terminalState == 0) {
+                    terminalState = 2;
+                    subscriber.onError(t);
+                }
+            }
         }
     }
 }

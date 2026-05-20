@@ -36,17 +36,17 @@ public final class SseParser {
     public void parse(@NonNull Consumer<SseEvent> eventConsumer) throws IOException {
         String line;
         while ((line = reader.readLine()) != null) {
-            if (line.startsWith("data: ")) {
-                String data = line.substring(6);
+            if (line.startsWith("data:")) {
+                String data = stripFirstSpace(line.substring(5));
                 if (currentData == null) {
                     currentData = data;
                 } else {
                     currentData += "\n" + data;
                 }
-            } else if (line.startsWith("event: ")) {
-                currentEventName = line.substring(7).trim();
-            } else if (line.startsWith("id: ")) {
-                currentId = line.substring(4);
+            } else if (line.startsWith("event:")) {
+                currentEventName = stripFirstSpace(line.substring(6));
+            } else if (line.startsWith("id:")) {
+                currentId = stripFirstSpace(line.substring(3));
             } else if (line.startsWith(":")) {
                 // SSE comment — ignore
             } else if (line.isEmpty()) {
@@ -68,13 +68,25 @@ public final class SseParser {
      * Parse a single event from a data line. Convenience for non-SSE JSON streaming.
      */
     public static @NonNull Result<SseEvent, String> parseLine(@NonNull String line) {
-        if (line.startsWith("data: ")) {
-            return Result.ok(new SseEvent("message", line.substring(6), null));
+        if (line.startsWith("data:")) {
+            return Result.ok(new SseEvent("message", stripFirstSpace(line.substring(5)), null));
         }
         if (line.startsWith(":")) {
             return Result.err("comment");
         }
         return Result.err("unrecognized line format");
+    }
+
+    /**
+     * Strip only the first leading space, per SSE spec.
+     * {@code data: hello} → {@code "hello"}, {@code data:hello} → {@code "hello"},
+     * {@code data:  hello} → {@code " hello"} (preserves second space).
+     */
+    private static @NonNull String stripFirstSpace(@NonNull String value) {
+        if (!value.isEmpty() && value.charAt(0) == ' ') {
+            return value.substring(1);
+        }
+        return value;
     }
 
     public record SseEvent(

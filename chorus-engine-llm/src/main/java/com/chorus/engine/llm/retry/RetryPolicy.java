@@ -65,13 +65,19 @@ public record RetryPolicy(
      */
     public @NonNull Duration computeDelay(int attempt) {
         if (attempt <= 0) return Duration.ZERO;
-        // Exponential backoff: base * 2^(attempt-1)
         long baseMs = baseDelay.toMillis();
-        long delayMs = baseMs * (1L << (attempt - 1));
-        delayMs = Math.min(delayMs, maxDelay.toMillis());
+        long maxDelayMs = maxDelay.toMillis();
+        // Safe exponential backoff: cap exponent to avoid overflow
+        int exp = Math.min(attempt - 1, 62);
+        long multiplier = 1L << exp;
+        long delayMs;
+        try {
+            delayMs = Math.multiplyExact(baseMs, multiplier);
+        } catch (ArithmeticException e) {
+            delayMs = Long.MAX_VALUE;
+        }
+        delayMs = Math.min(delayMs, maxDelayMs);
 
-        // Full jitter: random in [0, delayMs)
-        // Equal jitter: (delayMs/2 + random(0, delayMs/2))
         long jitterMs = (long) (delayMs * jitterFactor);
         if (jitterMs > 0) {
             delayMs = delayMs - jitterMs + ThreadLocalRandom.current().nextLong(jitterMs);

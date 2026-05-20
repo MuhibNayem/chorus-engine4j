@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -352,7 +353,7 @@ public final class HarnessEngine {
         WorkerRole role,
         TaskOrchestrator.PreparedTaskExecution prepared
     ) {
-        return "You are a " + role.name().toLowerCase() + ".\n\n"
+        return "You are a " + role.name().toLowerCase(Locale.ROOT) + ".\n\n"
             + prepared.runtimePrompt();
     }
 

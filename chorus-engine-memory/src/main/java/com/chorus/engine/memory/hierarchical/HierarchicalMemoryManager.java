@@ -47,6 +47,7 @@ public final class HierarchicalMemoryManager {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final int hotEpisodeThreshold;
     private final double procedureSuccessThreshold;
+    private final Set<String> consolidatedEpisodeIds = ConcurrentHashMap.newKeySet();
 
     public HierarchicalMemoryManager(
         @NonNull ShortTermMemory working,
@@ -184,9 +185,9 @@ public final class HierarchicalMemoryManager {
      */
     public @NonNull ContextAssembly assembleContext(@NonNull String query, int topK) {
         List<Message> working = workingRecent(topK);
-        List<EpisodicMemory.Episode> episodes = semanticRetrieve(query, topK).isEmpty()
-            ? episodicRecent(topK) : List.of();
         List<LongTermMemory.RetrievalResult> facts = semanticRetrieve(query, topK);
+        List<EpisodicMemory.Episode> episodes = facts.isEmpty()
+            ? episodicRecent(topK) : List.of();
         List<ProceduralMemory.Procedure> skills = proceduresByKeyword(query);
 
         return new ContextAssembly(working, episodes, facts, skills);
@@ -200,12 +201,14 @@ public final class HierarchicalMemoryManager {
             // Promote hot episodes to semantic memory
             List<EpisodicMemory.Episode> hot = episodic.findHotEpisodes(hotEpisodeThreshold);
             for (EpisodicMemory.Episode ep : hot) {
-                String key = "consolidated-" + ep.id();
-                semantic.store(ep.message(), key, Map.of(
-                    "source", "episodic_consolidation",
-                    "eventType", ep.eventType(),
-                    "timestamp", ep.timestamp().toString()
-                ));
+                if (consolidatedEpisodeIds.add(ep.id())) {
+                    String key = "consolidated-" + ep.id();
+                    semantic.store(ep.message(), key, Map.of(
+                        "source", "episodic_consolidation",
+                        "eventType", ep.eventType(),
+                        "timestamp", ep.timestamp().toString()
+                    ));
+                }
             }
         } catch (Exception e) {
             // Consolidation failures are non-fatal
@@ -215,6 +218,14 @@ public final class HierarchicalMemoryManager {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             consolidationExecutor.shutdown();
+            try {
+                if (!consolidationExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    consolidationExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                consolidationExecutor.shutdownNow();
+            }
         }
     }
 

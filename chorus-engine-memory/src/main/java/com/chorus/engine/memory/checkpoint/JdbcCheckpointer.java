@@ -103,7 +103,11 @@ public final class JdbcCheckpointer implements Checkpointer {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     String json = rs.getString("state_json");
-                    return Result.ok(serializer.deserialize(json));
+                    try {
+                        return Result.ok(serializer.deserialize(json));
+                    } catch (RuntimeException e) {
+                        return Result.err(Checkpointer.CheckpointError.of("DESERIALIZE_FAILED", "Failed to deserialize checkpoint", e));
+                    }
                 }
                 return Result.err(Checkpointer.CheckpointError.of("NOT_FOUND", "No checkpoints for run: " + runId));
             }
@@ -123,7 +127,11 @@ public final class JdbcCheckpointer implements Checkpointer {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     String json = rs.getString("state_json");
-                    return Result.ok(serializer.deserialize(json));
+                    try {
+                        return Result.ok(serializer.deserialize(json));
+                    } catch (RuntimeException e) {
+                        return Result.err(Checkpointer.CheckpointError.of("DESERIALIZE_FAILED", "Failed to deserialize checkpoint", e));
+                    }
                 }
                 return Result.err(Checkpointer.CheckpointError.of("NOT_FOUND", "No checkpoint at sequence " + sequenceNumber));
             }

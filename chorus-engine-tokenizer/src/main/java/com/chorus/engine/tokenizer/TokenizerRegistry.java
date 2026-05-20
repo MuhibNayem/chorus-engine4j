@@ -8,6 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -101,17 +102,17 @@ public final class TokenizerRegistry {
     }
 
     private void mapModel(String model, String encoding) {
-        modelToEncoding.put(model.toLowerCase(), encoding);
+        modelToEncoding.put(model.toLowerCase(Locale.ROOT), encoding);
     }
 
     /**
      * Get tokenizer for a model name.
      */
     public @NonNull Tokenizer forModel(@NonNull String modelName) {
-        String encoding = modelToEncoding.get(modelName.toLowerCase());
+        String encoding = modelToEncoding.get(modelName.toLowerCase(Locale.ROOT));
         if (encoding == null) {
             // Fallback: try to infer from model name patterns
-            String lower = modelName.toLowerCase();
+            String lower = modelName.toLowerCase(Locale.ROOT);
             if (lower.contains("gpt-4") || lower.contains("gpt-3.5")) encoding = "cl100k_base";
             else if (lower.contains("gpt-5") || lower.contains("o1") || lower.contains("o3")) encoding = "o200k_base";
             else if (lower.contains("llama") || lower.contains("phi")) encoding = "llama-3";
@@ -186,7 +187,7 @@ public final class TokenizerRegistry {
     }
 
     public void registerCustom(@NonNull String modelName, @NonNull Tokenizer tokenizer) {
-        cache.put(modelName.toLowerCase(), tokenizer);
-        modelToEncoding.put(modelName.toLowerCase(), modelName.toLowerCase());
+        cache.put(modelName.toLowerCase(Locale.ROOT), tokenizer);
+        modelToEncoding.put(modelName.toLowerCase(Locale.ROOT), modelName.toLowerCase(Locale.ROOT));
     }
 }

@@ -84,7 +84,7 @@ public final class ShellTool implements Tool {
                 if (command == null || command.isBlank()) {
                     yield Result.err(new ToolError.ValidationError("command", "Command is required"));
                 }
-                yield runCommand(command, false);
+                yield runCommand(command);
             }
             case "execute_script" -> {
                 String script = getString(args, "script");
@@ -95,13 +95,13 @@ public final class ShellTool implements Tool {
                 if (!allowlist.contains(interpreter)) {
                     yield Result.err(new ToolError.SafetyBlocked("Interpreter not in allowlist: " + interpreter));
                 }
-                yield runCommand(interpreter + " -c '" + escape(script) + "'", true);
+                yield runScript(interpreter, script);
             }
             default -> Result.err(new ToolError.ValidationError("operation", "Unknown operation: " + operation));
         };
     }
 
-    private Result<ToolOutput, ToolError> runCommand(String command, boolean isScript) {
+    private Result<ToolOutput, ToolError> runCommand(String command) {
         String baseCommand = extractBaseCommand(command);
         if (!allowlist.contains(baseCommand)) {
             return Result.err(new ToolError.SafetyBlocked("Command not in allowlist: " + baseCommand));
@@ -160,14 +160,60 @@ public final class ShellTool implements Tool {
         }
     }
 
+    private Result<ToolOutput, ToolError> runScript(String interpreter, String script) {
+        String label = interpreter + " -c <script>";
+        try {
+            ProcessBuilder pb = new ProcessBuilder(interpreter, "-c", script);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            CompletableFuture<String> outputFuture = CompletableFuture.supplyAsync(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    return reader.lines().collect(Collectors.joining("\n"));
+                } catch (IOException e) {
+                    throw new CompletionException(e);
+                }
+            });
+
+            String output;
+            try {
+                output = outputFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                process.destroyForcibly();
+                return Result.err(new ToolError.TimeoutError(timeout));
+            } catch (ExecutionException e) {
+                process.destroyForcibly();
+                return Result.err(new ToolError.ExecutionError(label, e.getCause().getMessage(), 1));
+            }
+
+            boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return Result.err(new ToolError.TimeoutError(timeout));
+            }
+
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                return Result.err(new ToolError.ExecutionError(label, output, exitCode));
+            }
+
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("exitCode", exitCode);
+            structured.put("command", label);
+            return Result.ok(new ToolOutput(output, structured));
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Result.err(new ToolError.ExecutionError(label, "Interrupted", 1));
+        } catch (IOException e) {
+            return Result.err(new ToolError.ExecutionError(label, e.getMessage(), 1));
+        }
+    }
+
     private static String extractBaseCommand(String command) {
         String trimmed = command.trim();
         int spaceIdx = trimmed.indexOf(' ');
         return spaceIdx > 0 ? trimmed.substring(0, spaceIdx) : trimmed;
-    }
-
-    private static String escape(String s) {
-        return s.replace("'", "'\\''");
     }
 
     private static String getString(Map<String, Object> args, String key) {

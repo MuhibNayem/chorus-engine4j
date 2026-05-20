@@ -6,6 +6,7 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -158,7 +159,7 @@ public final class TaskOrchestrator {
                 default -> List.of();
             };
             assignments.add(new WorkerAssignment(
-                taskId + "-" + role.name().toLowerCase() + "-" + i,
+                taskId + "-" + role.name().toLowerCase(Locale.ROOT) + "-" + i,
                 role, scope, "ctx-" + taskId, TaskStatus.QUEUED
             ));
         }

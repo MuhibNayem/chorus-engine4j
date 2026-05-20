@@ -3,6 +3,7 @@ package com.chorus.engine.rag.store;
 import org.jspecify.annotations.NonNull;
 
 import javax.sql.DataSource;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -44,7 +45,7 @@ public final class VectorStoreFactory {
         Objects.requireNonNull(type);
         Objects.requireNonNull(config);
 
-        return switch (type.toLowerCase()) {
+        return switch (type.toLowerCase(Locale.ROOT)) {
             case "memory" -> new InMemoryVectorStore();
             case "pgvector" -> createPgVector(config);
             case "qdrant" -> createQdrant(config);

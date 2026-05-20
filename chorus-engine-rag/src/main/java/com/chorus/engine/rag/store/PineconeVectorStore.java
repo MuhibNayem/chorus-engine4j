@@ -1,6 +1,7 @@
 package com.chorus.engine.rag.store;
 
 import com.chorus.engine.rag.document.Chunk;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -48,6 +49,14 @@ public final class PineconeVectorStore implements VectorStore {
                                @NonNull String indexHost,
                                @Nullable String namespace,
                                @NonNull HttpClient httpClient) {
+        this(apiKey, indexHost, namespace, httpClient, new ObjectMapper());
+    }
+
+    public PineconeVectorStore(@NonNull String apiKey,
+                               @NonNull String indexHost,
+                               @Nullable String namespace,
+                               @NonNull HttpClient httpClient,
+                               @NonNull ObjectMapper objectMapper) {
         this.apiKey = Objects.requireNonNull(apiKey);
         String host = indexHost.endsWith("/") ? indexHost.substring(0, indexHost.length() - 1) : indexHost;
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
@@ -56,7 +65,7 @@ public final class PineconeVectorStore implements VectorStore {
         this.indexHost = host;
         this.namespace = namespace == null || namespace.isBlank() ? "" : namespace;
         this.httpClient = httpClient;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
     }
 
     // ---- VectorStore implementation ----
@@ -260,7 +269,7 @@ public final class PineconeVectorStore implements VectorStore {
     private @NonNull Map<String, Object> parseMetadata(@Nullable JsonNode node) {
         if (node == null || node.isNull()) return Map.of();
         try {
-            return objectMapper.treeToValue(node, HashMap.class);
+            return objectMapper.treeToValue(node, new TypeReference<Map<String, Object>>() {});
         } catch (IOException e) {
             return Map.of();
         }

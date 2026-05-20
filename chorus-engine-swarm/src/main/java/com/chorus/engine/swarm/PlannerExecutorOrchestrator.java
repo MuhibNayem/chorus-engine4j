@@ -184,10 +184,10 @@ public final class PlannerExecutorOrchestrator implements SwarmOrchestrator {
     }
 
     private @NonNull String selectAgentForStep(@NonNull String step) {
-        String lower = step.toLowerCase();
+        String lower = step.toLowerCase(Locale.ROOT);
         for (Map.Entry<String, AgentDefinition> entry : agents.entrySet()) {
             if (entry.getKey().equals(plannerName)) continue;
-            String instructions = entry.getValue().instructions().toLowerCase();
+            String instructions = entry.getValue().instructions().toLowerCase(Locale.ROOT);
             // Simple keyword matching
             String[] words = lower.split("\\s+");
             for (String word : words) {

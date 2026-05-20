@@ -60,10 +60,15 @@ public final class CancellationToken {
      * If already cancelled, fires immediately.
      */
     public void onCancel(@NonNull Consumer<String> callback) {
+        AtomicBoolean fired = new AtomicBoolean(false);
+        Consumer<String> guarded = reason -> {
+            if (fired.compareAndSet(false, true)) {
+                callback.accept(reason);
+            }
+        };
+        callbacks.add(guarded);
         if (cancelled.get()) {
-            callback.accept(reason());
-        } else {
-            callbacks.add(callback);
+            guarded.accept(reason());
         }
     }
 

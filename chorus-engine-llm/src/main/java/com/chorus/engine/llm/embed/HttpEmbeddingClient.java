@@ -47,7 +47,10 @@ public final class HttpEmbeddingClient implements EmbeddingClient {
 
     @Override
     public @NonNull Result<float[], EmbeddingError> embed(@NonNull String text, @NonNull EmbedOptions options) {
-        return embedBatch(List.of(text), options).map(list -> list.get(0));
+        return embedBatch(List.of(text), options).map(list -> {
+            if (list.isEmpty()) throw new IllegalStateException("Empty embedding response from provider");
+            return list.get(0);
+        });
     }
 
     @Override
@@ -72,12 +75,14 @@ public final class HttpEmbeddingClient implements EmbeddingClient {
                 HttpResponse<String> response = httpClient.send(reqBuilder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
                 if (response.statusCode() == 200) {
-                    return config.responseParser.apply(objectMapper, response.body())
-                        .map(embs -> {
-                            if (options.normalize()) embs.forEach(HttpEmbeddingClient::normalize);
-                            return embs;
-                        })
-                        .mapErr(e -> new EmbeddingError("PARSE_ERROR", e, config.providerName, 0));
+                    Result<List<float[]>, String> parsed = config.responseParser.apply(objectMapper, response.body());
+                    if (parsed == null) {
+                        return Result.err(EmbeddingError.of("PARSE_ERROR", "Response parser returned null", config.providerName));
+                    }
+                    return parsed.map(embs -> {
+                        if (options.normalize()) embs.forEach(HttpEmbeddingClient::normalize);
+                        return embs;
+                    }).mapErr(e -> new EmbeddingError("PARSE_ERROR", e, config.providerName, 0));
                 }
 
                 lastError = new RuntimeException("HTTP " + response.statusCode() + ": " + response.body());
@@ -182,10 +187,18 @@ public final class HttpEmbeddingClient implements EmbeddingClient {
         return (mapper, body) -> {
             try {
                 JsonNode root = mapper.readTree(body);
-                ArrayNode data = (ArrayNode) root.get("data");
+                JsonNode dataNode = root.get("data");
+                if (dataNode == null || !dataNode.isArray()) {
+                    return Result.err("Missing or invalid 'data' array in response");
+                }
+                ArrayNode data = (ArrayNode) dataNode;
                 List<float[]> results = new ArrayList<>(data.size());
                 for (JsonNode item : data) {
-                    ArrayNode arr = (ArrayNode) item.get("embedding");
+                    JsonNode embNode = item.get("embedding");
+                    if (embNode == null || !embNode.isArray()) {
+                        return Result.err("Missing or invalid 'embedding' array in item");
+                    }
+                    ArrayNode arr = (ArrayNode) embNode;
                     float[] vec = new float[arr.size()];
                     for (int i = 0; i < arr.size(); i++) vec[i] = arr.get(i).floatValue();
                     results.add(vec);
@@ -204,9 +217,20 @@ public final class HttpEmbeddingClient implements EmbeddingClient {
         return (mapper, body) -> {
             try {
                 JsonNode root = mapper.readTree(body);
-                ArrayNode embeddings = (ArrayNode) root.get("embeddings").get("float");
+                JsonNode embeddingsNode = root.get("embeddings");
+                if (embeddingsNode == null || !embeddingsNode.isObject()) {
+                    return Result.err("Missing or invalid 'embeddings' object in response");
+                }
+                JsonNode floatNode = embeddingsNode.get("float");
+                if (floatNode == null || !floatNode.isArray()) {
+                    return Result.err("Missing or invalid 'embeddings.float' array in response");
+                }
+                ArrayNode embeddings = (ArrayNode) floatNode;
                 List<float[]> results = new ArrayList<>(embeddings.size());
                 for (JsonNode emb : embeddings) {
+                    if (!emb.isArray()) {
+                        return Result.err("Invalid embedding item: expected array");
+                    }
                     float[] vec = new float[emb.size()];
                     for (int i = 0; i < emb.size(); i++) vec[i] = emb.get(i).floatValue();
                     results.add(vec);

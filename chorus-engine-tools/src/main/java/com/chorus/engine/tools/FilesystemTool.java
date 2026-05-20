@@ -165,7 +165,9 @@ public final class FilesystemTool implements Tool {
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher(syntax);
         try (Stream<Path> stream = Files.walk(path)) {
             List<String> matches = stream
-                .filter(p -> matcher.matches(p.getFileName()))
+                .filter(p -> !p.equals(path))
+                .filter(p -> p.toAbsolutePath().normalize().startsWith(sandboxRoot))
+                .filter(p -> matcher.matches(path.relativize(p)))
                 .map(p -> path.relativize(p).toString())
                 .collect(Collectors.toList());
             Map<String, Object> structured = new LinkedHashMap<>();

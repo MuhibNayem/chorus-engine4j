@@ -42,7 +42,7 @@ public final class McpClient {
     private final McpTransport transport;
     private final ObjectMapper mapper;
     private final AtomicInteger idGenerator = new AtomicInteger(1);
-    private final ConcurrentHashMap<Object, CompletableFuture<JsonRpcMessage>> pending = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CompletableFuture<JsonRpcMessage>> pending = new ConcurrentHashMap<>();
     private final Flow.Subscription receiveSubscription;
     private volatile boolean initialized = false;
 
@@ -177,12 +177,17 @@ public final class McpClient {
 
     public void close() {
         receiveSubscription.cancel();
+        for (var entry : pending.entrySet()) {
+            entry.getValue().completeExceptionally(new IllegalStateException("Connection closed"));
+        }
+        pending.clear();
         transport.close();
     }
 
     private void handleIncoming(JsonRpcMessage message) {
-        Object id = extractId(message);
-        if (id != null) {
+        Object rawId = extractId(message);
+        if (rawId != null) {
+            String id = rawId.toString();
             CompletableFuture<JsonRpcMessage> future = pending.remove(id);
             if (future != null) {
                 future.complete(message);
@@ -201,14 +206,15 @@ public final class McpClient {
 
     private @NonNull Result<JsonNode, McpError> request(@NonNull String method, @Nullable JsonNode paramsNode) {
         int id = idGenerator.getAndIncrement();
+        String idKey = String.valueOf(id);
         Map<String, Object> params = paramsNode != null ? mapper.convertValue(paramsNode, Map.class) : null;
         JsonRpcRequest request = JsonRpcRequest.of(id, method, params);
         CompletableFuture<JsonRpcMessage> future = new CompletableFuture<>();
-        pending.put(id, future);
+        pending.put(idKey, future);
         try {
             transport.send(request);
         } catch (Exception e) {
-            pending.remove(id);
+            pending.remove(idKey);
             return Result.err(McpError.transportError("Failed to send request", e));
         }
         try {
@@ -224,10 +230,10 @@ public final class McpClient {
                 default -> Result.err(McpError.invalidRequest("Unexpected message type"));
             };
         } catch (TimeoutException e) {
-            pending.remove(id);
+            pending.remove(idKey);
             return Result.err(McpError.transportError("Request timed out"));
         } catch (Exception e) {
-            pending.remove(id);
+            pending.remove(idKey);
             return Result.err(McpError.internalError("Request failed", e));
         }
     }

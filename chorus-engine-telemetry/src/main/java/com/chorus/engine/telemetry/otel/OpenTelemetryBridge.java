@@ -208,8 +208,10 @@ public final class OpenTelemetryBridge {
         }
 
         void close() {
-            openTelemetry.getSdkTracerProvider().shutdown();
-            openTelemetry.getSdkMeterProvider().shutdown();
+            openTelemetry.getSdkTracerProvider().shutdown()
+                .join(5, java.util.concurrent.TimeUnit.SECONDS);
+            openTelemetry.getSdkMeterProvider().shutdown()
+                .join(5, java.util.concurrent.TimeUnit.SECONDS);
         }
     }
 }

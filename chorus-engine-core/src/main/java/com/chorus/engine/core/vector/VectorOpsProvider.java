@@ -2,6 +2,7 @@ package com.chorus.engine.core.vector;
 
 import org.jspecify.annotations.NonNull;
 
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,7 +28,7 @@ final class VectorOpsProvider {
     private VectorOpsProvider() {
         String override = System.getProperty("chorus.vector.ops");
         if (override != null) {
-            this.implementation = switch (override.toLowerCase()) {
+            this.implementation = switch (override.toLowerCase(Locale.ROOT)) {
                 case "vectorapi" -> createVectorApi();
                 case "fma" -> new FmaOperations();
                 case "scalar" -> new ScalarOperations();
@@ -59,9 +60,10 @@ final class VectorOpsProvider {
     private static VectorOperations createVectorApi() {
         try {
             // Loading VectorApiOperations triggers resolution of jdk.incubator.vector classes.
-            // In native image, if the module is absent, this throws NoClassDefFoundError.
+            // In native image, if the module is absent or unsupported, this throws LinkageError
+            // (e.g., NoClassDefFoundError, NoSuchMethodError, ExceptionInInitializerError).
             return VectorApiOperations.create();
-        } catch (NoClassDefFoundError | UnsupportedOperationException e) {
+        } catch (LinkageError | UnsupportedOperationException e) {
             LOGGER.fine("Vector API not available: " + e.getMessage());
             return null;
         }
