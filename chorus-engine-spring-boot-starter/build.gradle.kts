@@ -1,3 +1,4 @@
+
 plugins {
     id("com.vanniktech.maven.publish")
     id("java-library")
