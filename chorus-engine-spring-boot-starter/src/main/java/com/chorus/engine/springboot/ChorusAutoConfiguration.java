@@ -59,6 +59,7 @@ import com.chorus.engine.tools.ToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -628,7 +629,7 @@ public class ChorusAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        @ConditionalOnProperty(prefix = "chorus.telemetry", name = "budget-limit")
+        @ConditionalOnExpression("${chorus.telemetry.budget-limit:#{-1}} >= 0")
         public BudgetEnforcer budgetEnforcer(ChorusProperties props) {
             return new BudgetEnforcer(props.getTelemetry().getBudgetLimit());
         }

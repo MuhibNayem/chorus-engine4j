@@ -6,6 +6,17 @@ plugins {
     id("org.graalvm.buildtools.native")
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(listOf("-parameters", "--enable-preview"))
+    options.release.set(25)
+}
+
 application {
     mainClass.set("com.chorus.engine.sample.SampleApplication")
 }

@@ -17,6 +17,10 @@ allprojects {
 }
 
 subprojects {
+    // The sample is an application demo, not a published library module.
+    // Skip all framework build conventions for it.
+    if (name == "chorus-engine-spring-boot-sample") return@subprojects
+
     apply(plugin = "java-library")
 
     java {
