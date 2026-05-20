@@ -15,6 +15,7 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
@@ -39,7 +40,7 @@ import java.util.Map;
  * the bean definitions it creates are restored from AOT-generated code.
  */
 @Order(Ordered.LOWEST_PRECEDENCE - 100)
-public class AgentAnnotationProcessor implements BeanDefinitionRegistryPostProcessor {
+public class AgentAnnotationProcessor implements BeanDefinitionRegistryPostProcessor, SmartInitializingSingleton {
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
@@ -65,11 +66,19 @@ public class AgentAnnotationProcessor implements BeanDefinitionRegistryPostProce
         }
     }
 
+    private ConfigurableListableBeanFactory beanFactory;
+
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        if (!beanFactory.containsBean("toolRegistry")) return;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (beanFactory == null || !beanFactory.containsBean("toolRegistry")) return;
 
         try {
+            ToolRegistry toolRegistry = beanFactory.getBean("toolRegistry", ToolRegistry.class);
             String[] beanNames = beanFactory.getBeanDefinitionNames();
             for (String beanName : beanNames) {
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
@@ -79,7 +88,6 @@ public class AgentAnnotationProcessor implements BeanDefinitionRegistryPostProce
                 if (AnnotationUtils.findAnnotation(beanClass, Agent.class) == null) continue;
 
                 List<Method> toolMethods = findToolMethods(beanClass);
-                ToolRegistry toolRegistry = beanFactory.getBean("toolRegistry", ToolRegistry.class);
                 for (int i = 0; i < toolMethods.size(); i++) {
                     String toolBeanName = beanName + "_tool_" + i;
                     if (beanFactory.containsBean(toolBeanName)) {

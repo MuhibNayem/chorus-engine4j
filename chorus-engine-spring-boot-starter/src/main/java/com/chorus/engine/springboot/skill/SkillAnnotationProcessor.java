@@ -7,6 +7,7 @@ import com.chorus.engine.skills.SkillLoader;
 import com.chorus.engine.skills.SkillRegistry;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -23,7 +24,9 @@ import java.util.List;
  * loads skill definitions, and registers them in {@link SkillRegistry}.
  */
 @Order(Ordered.LOWEST_PRECEDENCE - 50)
-public class SkillAnnotationProcessor implements BeanDefinitionRegistryPostProcessor {
+public class SkillAnnotationProcessor implements BeanDefinitionRegistryPostProcessor, SmartInitializingSingleton {
+
+    private ConfigurableListableBeanFactory beanFactory;
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
@@ -32,7 +35,12 @@ public class SkillAnnotationProcessor implements BeanDefinitionRegistryPostProce
 
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        if (!beanFactory.containsBean("skillRegistry")) return;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (beanFactory == null || !beanFactory.containsBean("skillRegistry")) return;
 
         SkillRegistry registry = beanFactory.getBean("skillRegistry", SkillRegistry.class);
 

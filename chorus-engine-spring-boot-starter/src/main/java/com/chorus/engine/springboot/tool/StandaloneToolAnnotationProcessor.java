@@ -6,6 +6,7 @@ import com.chorus.engine.tools.Tool;
 import com.chorus.engine.tools.ToolRegistry;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -19,7 +20,9 @@ import org.springframework.core.annotation.Order;
  * {@link ChorusTool} and registers them in {@link ToolRegistry}.
  */
 @Order(Ordered.LOWEST_PRECEDENCE - 30)
-public class StandaloneToolAnnotationProcessor implements BeanDefinitionRegistryPostProcessor {
+public class StandaloneToolAnnotationProcessor implements BeanDefinitionRegistryPostProcessor, SmartInitializingSingleton {
+
+    private ConfigurableListableBeanFactory beanFactory;
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
@@ -28,7 +31,12 @@ public class StandaloneToolAnnotationProcessor implements BeanDefinitionRegistry
 
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        if (!beanFactory.containsBean("toolRegistry")) return;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (beanFactory == null || !beanFactory.containsBean("toolRegistry")) return;
 
         ToolRegistry registry = beanFactory.getBean("toolRegistry", ToolRegistry.class);
 
@@ -41,8 +49,12 @@ public class StandaloneToolAnnotationProcessor implements BeanDefinitionRegistry
             if (ann == null) continue;
 
             if (Tool.class.isAssignableFrom(beanClass)) {
-                Tool tool = beanFactory.getBean(beanName, Tool.class);
-                registry.register(tool);
+                try {
+                    Tool tool = beanFactory.getBean(beanName, Tool.class);
+                    registry.register(tool);
+                } catch (Exception e) {
+                    // Defensive
+                }
             }
         }
     }

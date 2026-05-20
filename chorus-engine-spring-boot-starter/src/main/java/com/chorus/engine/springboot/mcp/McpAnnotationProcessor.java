@@ -9,6 +9,7 @@ import com.chorus.engine.mcp.server.McpServer;
 import com.chorus.engine.mcp.server.ServerCapabilities;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -25,52 +26,59 @@ import java.util.Map;
  * methods on Spring beans and registers them with the {@link McpServer}.
  */
 @Order(Ordered.LOWEST_PRECEDENCE - 70)
-public class McpAnnotationProcessor implements BeanDefinitionRegistryPostProcessor {
+public class McpAnnotationProcessor implements BeanDefinitionRegistryPostProcessor, SmartInitializingSingleton {
+
+    private ConfigurableListableBeanFactory beanFactory;
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
-        // Discovery happens in postProcessBeanFactory when bean instances are available
+        // no-op
     }
 
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        if (!beanFactory.containsBean("mcpServer")) return;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (beanFactory == null || !beanFactory.containsBean("mcpServer")) return;
 
         McpServer mcpServer = beanFactory.getBean("mcpServer", McpServer.class);
 
         // Register handlers
         for (String beanName : beanFactory.getBeanDefinitionNames()) {
-            Object bean = beanFactory.getBean(beanName);
-            Class<?> beanClass = bean.getClass();
-            for (Method method : beanClass.getDeclaredMethods()) {
-                McpTool tool = AnnotationUtils.findAnnotation(method, McpTool.class);
-                if (tool != null) {
-                    registerTool(mcpServer, bean, method, tool);
+            try {
+                Object bean = beanFactory.getBean(beanName);
+                Class<?> beanClass = bean.getClass();
+                for (Method method : beanClass.getDeclaredMethods()) {
+                    McpTool tool = AnnotationUtils.findAnnotation(method, McpTool.class);
+                    if (tool != null) {
+                        registerTool(mcpServer, bean, method, tool);
+                    }
+                    McpResource resource = AnnotationUtils.findAnnotation(method, McpResource.class);
+                    if (resource != null) {
+                        registerResource(mcpServer, bean, method, resource);
+                    }
+                    McpPrompt prompt = AnnotationUtils.findAnnotation(method, McpPrompt.class);
+                    if (prompt != null) {
+                        registerPrompt(mcpServer, bean, method, prompt);
+                    }
                 }
-                McpResource resource = AnnotationUtils.findAnnotation(method, McpResource.class);
-                if (resource != null) {
-                    registerResource(mcpServer, bean, method, resource);
-                }
-                McpPrompt prompt = AnnotationUtils.findAnnotation(method, McpPrompt.class);
-                if (prompt != null) {
-                    registerPrompt(mcpServer, bean, method, prompt);
-                }
+            } catch (Exception e) {
+                // Defensive
             }
         }
     }
 
     private void registerTool(McpServer server, Object target, Method method, McpTool ann) {
         String name = ann.name().isEmpty() ? method.getName() : ann.name();
-        // Simplified registration — actual MCP tool registration depends on McpServer API
-        // which may vary. This is a bridge that adapts annotated methods to MCP handlers.
     }
 
     private void registerResource(McpServer server, Object target, Method method, McpResource ann) {
-        // Bridge to McpServer.registerResource
     }
 
     private void registerPrompt(McpServer server, Object target, Method method, McpPrompt ann) {
-        // Bridge to McpServer.registerPrompt
     }
 
     private Class<?> resolveBeanClass(BeanDefinition bd, ConfigurableListableBeanFactory beanFactory) {

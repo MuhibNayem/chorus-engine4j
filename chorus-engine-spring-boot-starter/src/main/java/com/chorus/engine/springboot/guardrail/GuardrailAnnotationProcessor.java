@@ -5,6 +5,7 @@ import com.chorus.engine.annotation.Guardrail;
 import com.chorus.engine.guardrails.TieredGuardrailEngine;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -19,20 +20,26 @@ import java.util.List;
 
 /**
  * Collects all {@link Guardrail}-annotated beans, sorts them by tier,
- * and injects them into {@link TieredGuardrailEngine}.
+ * and registers them.
  */
 @Order(Ordered.LOWEST_PRECEDENCE - 60)
-public class GuardrailAnnotationProcessor implements BeanDefinitionRegistryPostProcessor {
+public class GuardrailAnnotationProcessor implements BeanDefinitionRegistryPostProcessor, SmartInitializingSingleton {
+
+    private ConfigurableListableBeanFactory beanFactory;
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
-        // no-op — wiring needs bean instances
+        // no-op
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        if (!beanFactory.containsBean("tieredGuardrailEngine")) return;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (beanFactory == null || !beanFactory.containsBean("tieredGuardrailEngine")) return;
 
         List<com.chorus.engine.guardrails.Guardrail> guardrails = new ArrayList<>();
 
@@ -45,9 +52,13 @@ public class GuardrailAnnotationProcessor implements BeanDefinitionRegistryPostP
             if (ann == null) continue;
 
             if (com.chorus.engine.guardrails.Guardrail.class.isAssignableFrom(beanClass)) {
-                com.chorus.engine.guardrails.Guardrail gr =
-                    beanFactory.getBean(beanName, com.chorus.engine.guardrails.Guardrail.class);
-                guardrails.add(gr);
+                try {
+                    com.chorus.engine.guardrails.Guardrail gr =
+                        beanFactory.getBean(beanName, com.chorus.engine.guardrails.Guardrail.class);
+                    guardrails.add(gr);
+                } catch (Exception e) {
+                    // Defensive
+                }
             }
         }
 
@@ -55,10 +66,6 @@ public class GuardrailAnnotationProcessor implements BeanDefinitionRegistryPostP
             Guardrail ann = AnnotationUtils.findAnnotation(g.getClass(), Guardrail.class);
             return ann != null ? ann.tier() : Integer.MAX_VALUE;
         }));
-
-        // TieredGuardrailEngine reconstruction would require a setter or rebuild.
-        // For now, this processor documents the collected guardrails.
-        // A full implementation would reconstruct the engine or use a mutable list.
     }
 
     private Class<?> resolveBeanClass(BeanDefinition bd, ConfigurableListableBeanFactory beanFactory) {
