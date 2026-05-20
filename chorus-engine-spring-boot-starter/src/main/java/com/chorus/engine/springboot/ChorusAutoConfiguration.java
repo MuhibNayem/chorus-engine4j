@@ -629,7 +629,7 @@ public class ChorusAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        @ConditionalOnExpression("${chorus.telemetry.budget-limit:#{-1}} >= 0")
+        @ConditionalOnExpression("${chorus.telemetry.budget-limit:-1} >= 0")
         public BudgetEnforcer budgetEnforcer(ChorusProperties props) {
             return new BudgetEnforcer(props.getTelemetry().getBudgetLimit());
         }
