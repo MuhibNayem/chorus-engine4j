@@ -52,23 +52,44 @@ chorus:
 ```
 
 ```java
-@Service
-public class AgentService {
-    private final AgentLoop agentLoop;
-    private final RAGPipeline rag;
+// 1. Declare your Agent and its Tools
+@Agent(name = "assistant", systemPrompt = "You are a helpful assistant.")
+@Component
+public class MyAgent {
 
-    public AgentService(AgentLoop agentLoop, RAGPipeline rag) {
-        this.agentLoop = agentLoop;
-        this.rag = rag;
+    @Tool(description = "Adds two integers")
+    public int add(@ToolParam(description = "First integer") int a, @ToolParam(description = "Second integer") int b) {
+        return a + b;
+    }
+}
+
+// 2. Consume the generated AgentLoop bean
+@Service
+public class ChatService {
+    private final AgentLoop assistantAgentLoop;
+
+    public ChatService(AgentLoop assistantAgentLoop) {
+        this.assistantAgentLoop = assistantAgentLoop;
     }
 
-    public String ask(String question) {
-        // agentLoop is fully configured and ready to use
-        return agentLoop.run(question, CancellationToken.never())
-            .collect(...);
+    public Flow.Publisher<AgentEvent> ask(String question) {
+        return assistantAgentLoop.run(question, CancellationToken.never());
     }
 }
 ```
+
+## Annotation-Based Scanning & AOT Processing
+
+The starter automatically registers annotation post-processors for compiling and configuring:
+*   **`@Agent` & `@Tool`**: Generates reflection metadata and registers specialized `AgentLoop` beans.
+*   **`@SwarmAgent` & `@SwarmConfig`**: Automatically aggregates swarm metadata and overrides the default `SwarmOrchestrator` bean.
+*   **`@GraphWorkflow` & `@GraphNode`**: Automatically registers state graphs compiled as beans.
+*   **`@EventHandler`**: Automatically hooks into the telemetry `EventBus`.
+*   **`@Guardrail`**: Dynamically registers safety guardrails in the `TieredGuardrailEngine`.
+*   **`@Skill`**: Registers semantic skill blocks in the `SkillRegistry`.
+
+All annotation-processing steps are integrated with **Spring AOT**, automatically creating `reflect-config.json` rules during AOT build execution for **GraalVM Native Image** compatibility.
+
 
 ## Configuration Properties
 

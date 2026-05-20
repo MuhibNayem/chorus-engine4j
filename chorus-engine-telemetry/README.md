@@ -21,6 +21,30 @@ The `telemetry` module makes agentic systems observable. Every significant event
 
 ## Event Bus Usage
 
+### Declarative Listener (Spring Boot)
+
+Annotate component methods with `@EventHandler` to automatically subscribe to specific events:
+
+```java
+@Component
+public class TelemetryListener {
+
+    @EventHandler("llm.call")
+    public void onLlmCall(LlmCallEvent event) {
+        System.out.println("Tokens used: " + (event.inputTokens() + event.outputTokens()));
+    }
+
+    @EventHandler // subscribes to all events
+    public void onAnyEvent(ChorusEvent event) {
+        System.out.println("Event fired: " + event.eventType());
+    }
+}
+```
+
+### Programmatic Subscription
+
+If you are not using Spring Boot, subscribe manually:
+
 ```java
 import com.chorus.engine.telemetry.event.EventBus;
 import com.chorus.engine.telemetry.event.InMemoryEventBus;
@@ -38,6 +62,7 @@ bus.subscribe("llm.call", event -> {
     System.out.println("Tokens: " + (e.inputTokens() + e.outputTokens()));
 });
 ```
+
 
 ## Cost Tracking
 

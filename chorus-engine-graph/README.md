@@ -29,7 +29,42 @@ State S ──▶ Node A ──▶ State S' ──▶ [Router] ──▶ Node B 
 - Checkpoints save state after every node for resumability
 - Speculative execution runs multiple paths in parallel
 
-## Usage Example
+## Declarative Configuration (Spring Boot)
+
+You can define graph workflows using `@GraphWorkflow`, `@GraphNode`, and `@GraphEdge` on Spring `@Component` classes:
+
+```java
+@GraphWorkflow(entryPoint = "extract", finishPoints = {"synthesize"})
+@GraphEdge(from = "extract", to = "research")
+@GraphEdge(from = "research", to = "synthesize")
+@Component
+public class ResearchWorkflow {
+
+    @GraphNode("extract")
+    public Map<String, Object> extract(Map<String, Object> state, CancellationToken token) {
+        state.put("entities", extractEntities(state.get("query").toString()));
+        return state;
+    }
+
+    @GraphNode("research")
+    public Map<String, Object> research(Map<String, Object> state, CancellationToken token) {
+        state.put("results", search(state.get("entities").toString()));
+        return state;
+    }
+
+    @GraphNode("synthesize")
+    public Map<String, Object> synthesize(Map<String, Object> state, CancellationToken token) {
+        state.put("answer", generateAnswer(state.get("results")));
+        return state;
+    }
+}
+```
+
+The framework automatically compiles these components into a `CompiledGraph` bean.
+
+## Programmatic Usage Example
+
+If you prefer programmatic setup, you can build graphs manually:
 
 ```java
 import com.chorus.engine.graph.state.StateGraph;
@@ -55,6 +90,7 @@ Map<String, Object> initial = Map.of("query", "What is quantum computing?");
 Map<String, Object> result = graph.invoke(initial, "thread-123");
 System.out.println(result.get("answer"));
 ```
+
 
 ## Checkpointing Example
 

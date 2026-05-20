@@ -27,7 +27,47 @@ The `swarm` module implements multi-agent systems where specialized agents colla
 | **Supervisor** | Complex projects with clear phases (research → write → review) | Parallel workers |
 | **Planner-Executor** | Task decomposition (build a feature: plan → code → test → deploy) | DAG-based |
 
-## Usage Example
+## Declarative Configuration (Spring Boot)
+
+You can define agents and the orchestrator configuration using annotations. The framework automatically scans `@SwarmAgent` components and configures the `SwarmOrchestrator` bean:
+
+```java
+// 1. Configure the orchestrator strategy globally
+@Configuration
+@SwarmConfig(orchestrator = "handoff", maxTurns = 10)
+public class SwarmConfiguration {
+}
+
+// 2. Define the agents as components
+@SwarmAgent(
+    name = "researcher",
+    instructions = "You are a research assistant. Find facts and cite sources.",
+    toolNames = {"web_search", "calculator"},
+    handoffTargets = {"writer"}
+)
+@Component
+public class ResearcherAgent {
+}
+
+@SwarmAgent(
+    name = "writer",
+    instructions = "You are a technical writer. Synthesize research into clear prose."
+)
+@Component
+public class WriterAgent {
+}
+```
+
+Then inject `SwarmOrchestrator` directly:
+
+```java
+@Autowired
+private SwarmOrchestrator swarmOrchestrator;
+```
+
+## Programmatic Usage Example
+
+If you are not using Spring Boot, you can configure the swarm programmatically:
 
 ```java
 import com.chorus.engine.swarm.*;
@@ -63,6 +103,7 @@ orchestrator.run("Write a report on quantum computing advances in 2025", token)
         }
     });
 ```
+
 
 ## Cost-Aware Routing
 

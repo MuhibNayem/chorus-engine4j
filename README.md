@@ -12,19 +12,13 @@
 Chorus Engine is a **Java-native** framework for building agentic AI systems — autonomous agents that reason, plan, use tools, remember context, and collaborate. Built for the JVM, it brings the power of modern agentic AI to Java developers without requiring Python interop.
 
 ```java
-@Service
-public class MyAgentService {
-    private final AgentLoop agentLoop;
-    private final RAGPipeline rag;
+@Agent(name = "assistant", systemPrompt = "You are a helpful coding assistant.")
+@Component
+public class DeveloperAgent {
 
-    public MyAgentService(AgentLoop agentLoop, RAGPipeline rag) {
-        this.agentLoop = agentLoop;
-        this.rag = rag;
-    }
-
-    public String ask(String question) {
-        return agentLoop.run(question, CancellationToken.never())
-            .collect(...);
+    @Tool(description = "Runs tests and returns output")
+    public String runTests(@ToolParam(description = "Module name") String module) {
+        return "./gradlew :" + module + ":test - successful";
     }
 }
 ```
@@ -73,17 +67,16 @@ chorus:
 
 ```java
 @Service
-public class AgentService {
-    private final AgentLoop agentLoop;
+public class ChatService {
+    // Injected automatically by the framework from the DeveloperAgent definition
+    private final AgentLoop assistantAgentLoop;
 
-    public AgentService(AgentLoop agentLoop) {
-        this.agentLoop = agentLoop;
+    public ChatService(AgentLoop assistantAgentLoop) {
+        this.assistantAgentLoop = assistantAgentLoop;
     }
 
-    public String ask(String question) {
-        // Fully configured, ready to use
-        return agentLoop.run(question, CancellationToken.never())
-            .collect(...);
+    public Flow.Publisher<AgentEvent> ask(String question) {
+        return assistantAgentLoop.run(question, CancellationToken.never());
     }
 }
 ```

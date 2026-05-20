@@ -33,7 +33,28 @@ The `skills` module enables agents to discover and invoke capabilities dynamical
 }
 ```
 
-## Usage Example
+## Declarative Setup (Spring Boot)
+
+You can declare custom skills directly as Spring components using `@Skill`:
+
+```java
+@Skill(
+    id = "web-researcher",
+    name = "Web Researcher",
+    systemPrompt = "You are a meticulous research assistant...",
+    toolNames = {"web_search", "summarize"}
+)
+@Component
+public class WebResearcherSkill {
+    // You can wire any dependency here to support execution or configuration
+}
+```
+
+The framework automatically scans these classes, compiles them into `Skill` records, and registers them in the `SkillRegistry` and `SemanticSkillIndex`.
+
+## Programmatic Usage Example
+
+If you are not using Spring Boot, you can load and index skills manually:
 
 ```java
 import com.chorus.engine.skills.*;
@@ -54,6 +75,7 @@ match.ifPresent(skill -> {
     // Configure agent with skill.systemPrompt() and skill.toolNames()
 });
 ```
+
 
 ## Dynamic Skill Loading
 

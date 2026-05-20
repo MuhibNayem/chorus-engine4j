@@ -1010,6 +1010,185 @@ chorus:
   telemetry.open-telemetry-enabled: true
 ```
 
+### 12.4 Annotation-Driven Agent Development
+
+Chorus Engine supports a fully declarative, annotation-driven programming model when used with Spring Boot. This eliminates all boilerplate code, allowing you to declare agents, tools, swarms, workflows, event handlers, and guardrails via simple annotations on Spring components.
+
+#### 12.4.1 Declaring Agents and Tools (`@Agent` & `@Tool`)
+
+To create an agent, annotate a Spring `@Component` class with `@Agent` and define its tool methods using the `@Tool` annotation. The framework automatically generates an `AgentLoop` bean named `<name>AgentLoop` and registers all its `@Tool` methods:
+
+```java
+package com.example.agents;
+
+import com.chorus.engine.annotation.*;
+import org.springframework.stereotype.Component;
+
+@Agent(
+    name = "coder", 
+    systemPrompt = "You are a software engineer. Write clean code.",
+    model = "gpt-4o",
+    temperature = 0.2
+)
+@Component
+public class CoderAgent {
+
+    @Tool(description = "Saves code content to a specific file path")
+    public String writeCode(
+        @ToolParam(description = "Absolute path to the file") String path,
+        @ToolParam(description = "Code content to write") String content
+    ) {
+        // Implement logic (Spring beans can be autowired into this class to help)
+        return "Successfully wrote " + content.length() + " characters to " + path;
+    }
+}
+```
+
+You can then inject this agent loop into any controller or service using its auto-generated bean name:
+
+```java
+@RestController
+@RequestMapping("/code")
+public class CoderController {
+
+    private final AgentLoop coderAgentLoop; // Generated automatically from name = "coder"
+
+    public CoderController(AgentLoop coderAgentLoop) {
+        this.coderAgentLoop = coderAgentLoop;
+    }
+
+    @PostMapping("/generate")
+    public Flow.Publisher<AgentEvent> generate(@RequestBody String prompt) {
+        return coderAgentLoop.run(prompt, CancellationToken.never());
+    }
+}
+```
+
+#### 12.4.2 Declaring Multi-Agent Swarms (`@SwarmAgent` & `@SwarmConfig`)
+
+Define multi-agent swarm participants using `@SwarmAgent`. You can specify a global swarm orchestration strategy (e.g. `handoff`, `supervisor`, or `planner-executor`) using `@SwarmConfig`:
+
+```java
+@Configuration
+@SwarmConfig(orchestrator = "supervisor", maxTurns = 15)
+public class SwarmSetup {
+}
+
+@SwarmAgent(
+    name = "planner", 
+    instructions = "Create a detailed execution plan.", 
+    handoffTargets = {"worker"}
+)
+@Component
+public class SwarmPlannerAgent {
+}
+
+@SwarmAgent(
+    name = "worker", 
+    instructions = "Execute the assigned plan using tools.", 
+    toolNames = {"read_file", "write_file"}
+)
+@Component
+public class SwarmWorkerAgent {
+}
+```
+
+The framework automatically scans these classes, resolves their parameters, handles configuration fallbacks, and registers a single `SwarmOrchestrator` bean (`swarmOrchestrator`).
+
+#### 12.4.3 Declaring Workflows (`@GraphWorkflow`, `@GraphNode`, `@GraphEdge`)
+
+Declare stateful, cyclical workflows (graphs) declaratively by annotating a class with `@GraphWorkflow`, and defining nodes as methods annotated with `@GraphNode` and connecting edges using `@GraphEdge`:
+
+```java
+@GraphWorkflow(entryPoint = "init", finishPoints = {"done"})
+@GraphEdge(from = "init", to = "process")
+@GraphEdge(from = "process", to = "validate")
+@GraphEdge(from = "validate", to = "done")
+@Component
+public class DocumentProcessWorkflow {
+
+    @GraphNode("init")
+    public Map<String, Object> initialize(Map<String, Object> state, CancellationToken token) {
+        state.put("status", "INITIALIZED");
+        return state;
+    }
+
+    @GraphNode("process")
+    public Map<String, Object> process(Map<String, Object> state, CancellationToken token) {
+        state.put("content", state.get("raw").toString().toUpperCase());
+        return state;
+    }
+
+    @GraphNode("validate")
+    public Map<String, Object> validate(Map<String, Object> state, CancellationToken token) {
+        state.put("valid", true);
+        return state;
+    }
+}
+```
+
+#### 12.4.4 Declaring Telemetry Event Listeners (`@EventHandler`)
+
+Any Spring Bean can listen to agent events automatically by annotating a method with `@EventHandler`:
+
+```java
+@Component
+public class AgentMetricsListener {
+
+    @EventHandler("llm.token")
+    public void onToken(StreamTokenEvent event) {
+        System.out.print(event.token());
+    }
+
+    @EventHandler("tool.call.start")
+    public void onToolStart(ToolCallStartEvent event) {
+        System.out.println("Calling tool: " + event.toolName());
+    }
+}
+```
+
+#### 12.4.5 Declaring Custom Guardrails (`@Guardrail`)
+
+Custom guardrails implementing `Guardrail` can be scanned and added to the `TieredGuardrailEngine` automatically:
+
+```java
+@Guardrail(tier = 1, name = "profanity-filter")
+@Component
+public class ProfanityGuardrail implements Guardrail {
+    @Override
+    public Result<GuardrailResult, GuardrailError> validate(List<Message> messages) {
+        // Validation logic...
+    }
+}
+```
+
+#### 12.4.6 Declaring Custom Skills (`@Skill`)
+
+Custom semantic skills are registered automatically in the `SkillRegistry`:
+
+```java
+@Skill(
+    id = "sql-expert", 
+    name = "SQL Query Writer", 
+    systemPrompt = "You write highly optimized SQL queries.",
+    toolNames = {"query_db", "describe_table"}
+)
+@Component
+public class SqlExpertSkill {
+}
+```
+
+### 12.5 GraalVM AOT Compilation Compatibility
+
+Chorus Engine provides first-class support for compiling to **GraalVM Native Images**. 
+
+To prevent runtime failures due to dynamic classloading or heavy reflection, the starter module registers custom **Spring AOT processors** (`AgentAnnotationAotProcessor`, `GraphAnnotationAotProcessor`, etc.). During the Spring AOT compilation phase (e.g. when running `./gradlew nativeCompile`), the framework:
+1. Scans and processes all annotated components.
+2. Formulates static reflection metadata configurations.
+3. Automatically writes them to GraalVM reflection files (`reflect-config.json`, `resource-config.json`).
+
+This ensures that the final native executable starts in milliseconds with minimal memory footprint and zero reflection-based crashes.
+
 ---
 
 ## 13. Production Checklist

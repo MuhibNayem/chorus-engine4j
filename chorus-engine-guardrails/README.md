@@ -25,7 +25,26 @@ The `guardrails` module protects agentic systems from prompt injection, data lea
 | 2 | Embedding similarity | ~10ms | Cheap | Semantic prompt injection detection |
 | 3 | LLM judge | ~500ms | Expensive | Policy violation assessment |
 
-## Usage Example
+## Declarative Setup (Spring Boot)
+
+Annotate custom `Guardrail` implementations with `@Guardrail`. The framework automatically scans, sorts them by `tier()`, and wires them into the `TieredGuardrailEngine` bean:
+
+```java
+@Guardrail(tier = 1, name = "profanity-filter")
+@Component
+public class ProfanityFilterGuardrail implements Guardrail {
+
+    @Override
+    public Result<GuardrailResult, GuardrailError> validate(List<Message> messages) {
+        // Implement validation logic...
+        return Result.ok(new GuardrailResult(GuardrailAction.PASS, "No profanity found"));
+    }
+}
+```
+
+## Programmatic Usage Example
+
+If you are not using Spring Boot, you can construct a `TieredGuardrailEngine` manually:
 
 ```java
 import com.chorus.engine.guardrails.*;
@@ -46,6 +65,7 @@ if (result.action() == GuardrailAction.BLOCK) {
     System.out.println("Redacted: " + result.redactedContent());
 }
 ```
+
 
 ## Dependencies
 

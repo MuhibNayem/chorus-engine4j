@@ -25,10 +25,34 @@ The `tools` module provides the infrastructure for LLM-invokable tools: automati
 
 ## Writing a Custom Tool
 
-```java
-import com.chorus.engine.tools.Tool;
-import java.util.Map;
+You can implement tools programmatically or declare them using Spring Boot annotations.
 
+### Option A: Declarative Method-Level Tools (Recommended for Spring Boot)
+
+Declare a method inside a `@Agent` component as a tool using `@Tool` and `@ToolParam`. The framework handles schema generation and argument coercion:
+
+```java
+@Agent(name = "assistant")
+@Component
+public class MathAgent {
+
+    @Tool(description = "Evaluates mathematical expressions")
+    public double calculate(
+        @ToolParam(description = "The math expression (e.g. 2 + 2)") String expression
+    ) {
+        // Evaluate expression...
+        return result;
+    }
+}
+```
+
+### Option B: Class-Level Tool Scan (`@ChorusTool`)
+
+Annotate a class implementing `com.chorus.engine.tools.Tool` with `@ChorusTool` to register it automatically:
+
+```java
+@ChorusTool("calculator")
+@Component
 public class CalculatorTool implements Tool {
     @Override public String name() { return "calculator"; }
     @Override public String description() { return "Evaluate mathematical expressions"; }
@@ -49,8 +73,24 @@ public class CalculatorTool implements Tool {
 }
 ```
 
+### Option C: Programmatic Custom Tool
+
+Implement the `com.chorus.engine.tools.Tool` interface manually:
+
+```java
+public class CalculatorTool implements Tool {
+    @Override public String name() { return "calculator"; }
+    @Override public String description() { return "Evaluate mathematical expressions"; }
+    // Schema and execute methods...
+}
+```
+
 ## Registering Tools
 
+### Declarative Mode (Spring Boot)
+Any class annotated with `@ChorusTool` or containing `@Tool` inside an `@Agent` component is auto-discovered and registered in the Spring ApplicationContext's `ToolRegistry`.
+
+### Programmatic Mode
 ```java
 ToolRegistry registry = new ToolRegistry();
 registry.register(new CalculatorTool());
@@ -62,6 +102,7 @@ ChatRequest request = ChatRequest.builder()
     .tools(registry.definitions())
     .build();
 ```
+
 
 ## Security Warning
 
