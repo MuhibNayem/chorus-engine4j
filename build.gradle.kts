@@ -27,8 +27,6 @@ subprojects {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(25))
         }
-        withSourcesJar()
-        withJavadocJar()
     }
 
     dependencies {
@@ -58,5 +56,10 @@ subprojects {
 
     tasks.withType<Javadoc> {
         options.encoding = "UTF-8"
+        (options as StandardJavadocDocletOptions).apply {
+            addStringOption("-add-modules", "jdk.incubator.vector")
+            addStringOption("source", "25")
+        }
+        isFailOnError = false
     }
 }
