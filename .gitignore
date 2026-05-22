@@ -35,3 +35,5 @@ bin/
 # Chorus Engine
 .chorus/
 *.checkpoint
+chorus-studio/
+chorus-observe-server/

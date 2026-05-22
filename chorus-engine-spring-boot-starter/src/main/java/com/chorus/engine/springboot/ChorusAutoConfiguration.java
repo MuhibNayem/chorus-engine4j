@@ -779,6 +779,22 @@ public class ChorusAutoConfiguration {
             );
             return new OpenTelemetryBridge(eventBus, config);
         }
+
+        @Bean(destroyMethod = "close")
+        @ConditionalOnMissingBean
+        @ConditionalOnClass(name = "io.opentelemetry.api.trace.Tracer")
+        @ConditionalOnProperty(prefix = "chorus.observe", name = "enabled", havingValue = "true")
+        public com.chorus.engine.telemetry.otel.ChorusOtlpExporter chorusOtlpExporter(EventBus eventBus, ChorusProperties props) {
+            var observe = props.getObserve();
+            var config = new com.chorus.engine.telemetry.otel.ChorusOtlpExporter.Config(
+                observe.getEndpoint(),
+                observe.getHeaders(),
+                observe.getSampleRate(),
+                observe.isExportProvenance(),
+                observe.getFramework()
+            );
+            return new com.chorus.engine.telemetry.otel.ChorusOtlpExporter(eventBus, config);
+        }
     }
 
     // ================================================================

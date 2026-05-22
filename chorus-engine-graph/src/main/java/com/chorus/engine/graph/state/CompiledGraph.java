@@ -127,4 +127,35 @@ public final class CompiledGraph<S> {
     ) {
         return executor.streamResume(threadId, token);
     }
+
+    /**
+     * Invoke the graph from a historical checkpoint with optional state overrides.
+     * Useful for time-travel debugging and replay scenarios.
+     *
+     * @param threadId      the execution thread / run identifier
+     * @param sequence      the checkpoint sequence number to load
+     * @param stateOverride partial state applied on top of the checkpointed state
+     * @param token         cancellation token
+     * @return the final or interrupted state
+     * @throws IllegalStateException if the checkpoint does not exist
+     */
+    public @NonNull S invokeFromCheckpoint(
+        @NonNull String threadId, long sequence, @NonNull S stateOverride, @NonNull CancellationToken token
+    ) {
+        Result<GraphCheckpointer.Checkpoint<S>, Checkpointer.CheckpointError> loaded = checkpointer.loadBySequence(threadId, sequence);
+        if (loaded.isErr()) {
+            throw new IllegalStateException("No checkpoint at sequence " + sequence + " for thread: " + threadId);
+        }
+        GraphCheckpointer.Checkpoint<S> checkpoint = loaded.unwrap();
+        if (checkpoint.nextNodes().isEmpty()) {
+            throw new IllegalStateException("Graph already completed at sequence " + sequence + " for thread: " + threadId);
+        }
+        S overriddenState = graph.updater().apply(checkpoint.state(), stateOverride);
+        Result<Void, Checkpointer.CheckpointError> saveResult = checkpointer.save(
+            threadId, checkpoint.sequence() + 1, overriddenState, checkpoint.nextNodes());
+        if (saveResult.isErr()) {
+            throw new IllegalStateException("Failed to save overridden checkpoint: " + saveResult.unwrapErr().message());
+        }
+        return executor.resume(threadId, token);
+    }
 }

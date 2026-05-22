@@ -28,6 +28,7 @@ public class ChorusProperties {
     private Mcp mcp = new Mcp();
     private A2a a2a = new A2a();
     private Evals evals = new Evals();
+    private Observe observe = new Observe();
     private Enterprise enterprise = new Enterprise();
 
     // ------------------------------------------------------------------
@@ -75,6 +76,9 @@ public class ChorusProperties {
 
     public Evals getEvals() { return evals; }
     public void setEvals(Evals evals) { this.evals = evals; }
+
+    public Observe getObserve() { return observe; }
+    public void setObserve(Observe observe) { this.observe = observe; }
 
     public Enterprise getEnterprise() { return enterprise; }
     public void setEnterprise(Enterprise enterprise) { this.enterprise = enterprise; }
@@ -594,6 +598,28 @@ public class ChorusProperties {
         public void setLlmJudgePassThreshold(double llmJudgePassThreshold) { this.llmJudgePassThreshold = llmJudgePassThreshold; }
         public double getSemanticSimilarityThreshold() { return semanticSimilarityThreshold; }
         public void setSemanticSimilarityThreshold(double semanticSimilarityThreshold) { this.semanticSimilarityThreshold = semanticSimilarityThreshold; }
+    }
+
+    public static class Observe {
+        private boolean enabled = false;
+        private String endpoint = "http://localhost:4317";
+        private boolean exportProvenance = true;
+        private double sampleRate = 1.0;
+        private Map<String, String> headers = Map.of();
+        private String framework = "chorus";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public String getEndpoint() { return endpoint; }
+        public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+        public boolean isExportProvenance() { return exportProvenance; }
+        public void setExportProvenance(boolean exportProvenance) { this.exportProvenance = exportProvenance; }
+        public double getSampleRate() { return sampleRate; }
+        public void setSampleRate(double sampleRate) { this.sampleRate = sampleRate; }
+        public Map<String, String> getHeaders() { return headers; }
+        public void setHeaders(Map<String, String> headers) { this.headers = headers != null ? Map.copyOf(headers) : Map.of(); }
+        public String getFramework() { return framework; }
+        public void setFramework(String framework) { this.framework = framework; }
     }
 
     public static class Enterprise {

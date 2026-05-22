@@ -19,5 +19,6 @@ include(
     "chorus-engine-rag",
     "chorus-engine-spring-boot-starter",
     "chorus-engine-spring-boot-sample",
-    "chorus-engine-bom"
+    "chorus-engine-bom",
+    "chorus-observe-server"
 )

@@ -45,6 +45,23 @@ public interface GraphCheckpointer<S> {
     @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> loadLatest(@NonNull String threadId);
 
     /**
+     * Load a specific checkpoint by sequence number.
+     *
+     * @param threadId the execution thread / run identifier
+     * @param sequence the checkpoint sequence number
+     * @return the checkpoint or an error
+     */
+    @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> loadBySequence(@NonNull String threadId, long sequence);
+
+    /**
+     * List all checkpoints for a thread, newest first.
+     *
+     * @param threadId the execution thread / run identifier
+     * @return list of checkpoint references or an error
+     */
+    @NonNull Result<List<Checkpointer.CheckpointRef>, Checkpointer.CheckpointError> listCheckpoints(@NonNull String threadId);
+
+    /**
      * A deserialized checkpoint.
      *
      * @param state     the graph state at this checkpoint
@@ -95,6 +112,16 @@ public interface GraphCheckpointer<S> {
             public @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> loadLatest(@NonNull String threadId) {
                 return Result.err(Checkpointer.CheckpointError.of("NOOP", "No checkpointer configured"));
             }
+
+            @Override
+            public @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> loadBySequence(@NonNull String threadId, long sequence) {
+                return Result.err(Checkpointer.CheckpointError.of("NOOP", "No checkpointer configured"));
+            }
+
+            @Override
+            public @NonNull Result<List<Checkpointer.CheckpointRef>, Checkpointer.CheckpointError> listCheckpoints(@NonNull String threadId) {
+                return Result.ok(List.of());
+            }
         };
     }
 
@@ -129,27 +156,39 @@ public interface GraphCheckpointer<S> {
             return delegate.save(threadId, sequence, agentState);
         }
 
-        @SuppressWarnings("unchecked")
         @Override
         public @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> loadLatest(@NonNull String threadId) {
-            return delegate.loadLatest(threadId).flatMap(agentState -> {
-                Map<String, Object> context = agentState.context();
-                byte[] bytes = (byte[]) context.get("_state");
-                if (bytes == null) {
-                    return Result.err(Checkpointer.CheckpointError.of("CORRUPT",
-                        "Checkpoint missing _state field for thread: " + threadId));
-                }
-                List<String> nextNodes;
-                try {
-                    nextNodes = (List<String>) context.getOrDefault("_nextNodes", List.of());
-                } catch (ClassCastException e) {
-                    return Result.err(Checkpointer.CheckpointError.of("CORRUPT",
-                        "Checkpoint has malformed _nextNodes field for thread: " + threadId));
-                }
-                long sequence = ((Number) context.getOrDefault("_sequence", 0L)).longValue();
-                S state = deserializer.apply(bytes);
-                return Result.ok(new Checkpoint<>(state, nextNodes, sequence));
-            });
+            return delegate.loadLatest(threadId).flatMap(this::deserialize);
+        }
+
+        @Override
+        public @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> loadBySequence(@NonNull String threadId, long sequence) {
+            return delegate.load(threadId, sequence).flatMap(this::deserialize);
+        }
+
+        @Override
+        public @NonNull Result<List<Checkpointer.CheckpointRef>, Checkpointer.CheckpointError> listCheckpoints(@NonNull String threadId) {
+            return delegate.list(threadId);
+        }
+
+        @SuppressWarnings("unchecked")
+        private @NonNull Result<Checkpoint<S>, Checkpointer.CheckpointError> deserialize(@NonNull AgentState agentState) {
+            Map<String, Object> context = agentState.context();
+            byte[] bytes = (byte[]) context.get("_state");
+            if (bytes == null) {
+                return Result.err(Checkpointer.CheckpointError.of("CORRUPT",
+                    "Checkpoint missing _state field for thread: " + agentState.runId()));
+            }
+            List<String> nextNodes;
+            try {
+                nextNodes = (List<String>) context.getOrDefault("_nextNodes", List.of());
+            } catch (ClassCastException e) {
+                return Result.err(Checkpointer.CheckpointError.of("CORRUPT",
+                    "Checkpoint has malformed _nextNodes field for thread: " + agentState.runId()));
+            }
+            long sequence = ((Number) context.getOrDefault("_sequence", 0L)).longValue();
+            S state = deserializer.apply(bytes);
+            return Result.ok(new Checkpoint<>(state, nextNodes, sequence));
         }
     }
 

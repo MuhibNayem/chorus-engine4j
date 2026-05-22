@@ -42,11 +42,30 @@ public final class TieredGuardrailEngine {
     }
 
     public @NonNull EvaluationResult evaluateInput(@NonNull String input, Guardrail.@NonNull GuardrailContext context) {
+        return evaluate(input, context, false);
+    }
+
+    /**
+     * Evaluate output against guardrails that support output validation.
+     *
+     * @param output  the LLM/agent output to evaluate
+     * @param context guardrail context
+     * @return evaluation result
+     */
+    public @NonNull EvaluationResult evaluateOutput(@NonNull String output, Guardrail.@NonNull GuardrailContext context) {
+        return evaluate(output, context, true);
+    }
+
+    private @NonNull EvaluationResult evaluate(@NonNull String input, Guardrail.@NonNull GuardrailContext context, boolean outputOnly) {
         Instant start = Instant.now();
         List<GuardrailResult> results = new ArrayList<>();
 
+        List<Guardrail> activeTier1 = outputOnly ? filterOutputGuardrails(tier1) : tier1;
+        List<Guardrail> activeTier2 = outputOnly ? filterOutputGuardrails(tier2) : tier2;
+        List<Guardrail> activeTier3 = outputOnly ? filterOutputGuardrails(tier3) : tier3;
+
         // Tier 1: Sequential, fast short-circuit
-        for (Guardrail g : tier1) {
+        for (Guardrail g : activeTier1) {
             GuardrailResult r = g.evaluate(input, context);
             results.add(r);
             if (!r.allowed() && r.action() == GuardrailResult.Action.BLOCK) {
@@ -55,13 +74,17 @@ public final class TieredGuardrailEngine {
         }
 
         // Tier 2: Parallel with timeout
-        if (!tier2.isEmpty()) {
+        if (!activeTier2.isEmpty()) {
             List<Future<GuardrailResult>> futures = new ArrayList<>();
-            for (Guardrail g : tier2) {
-                futures.add(executor.submit(() -> g.evaluate(input, context)));
+            Map<Future<GuardrailResult>, Guardrail> futureToGuardrail = new HashMap<>();
+            for (Guardrail g : activeTier2) {
+                Future<GuardrailResult> f = executor.submit(() -> g.evaluate(input, context));
+                futures.add(f);
+                futureToGuardrail.put(f, g);
             }
 
             for (Future<GuardrailResult> f : futures) {
+                Guardrail g = futureToGuardrail.get(f);
                 try {
                     GuardrailResult r = f.get(tier2Timeout.toMillis(), TimeUnit.MILLISECONDS);
                     results.add(r);
@@ -71,10 +94,10 @@ public final class TieredGuardrailEngine {
                     }
                 } catch (TimeoutException e) {
                     f.cancel(true);
-                    results.add(GuardrailResult.allow(guardrailName(f), 2, tier2Timeout));
+                    results.add(GuardrailResult.allow(g.name(), 2, tier2Timeout));
                 } catch (Exception e) {
                     f.cancel(true);
-                    results.add(GuardrailResult.allow(guardrailName(f), 2, Duration.ZERO));
+                    results.add(GuardrailResult.allow(g.name(), 2, Duration.ZERO));
                 }
             }
         }
@@ -84,8 +107,8 @@ public final class TieredGuardrailEngine {
             .filter(r -> r.tier() == 2)
             .anyMatch(r -> r.confidence() > 0.3 && r.confidence() < 0.7);
 
-        if (ambiguous && !tier3.isEmpty()) {
-            for (Guardrail g : tier3) {
+        if (ambiguous && !activeTier3.isEmpty()) {
+            for (Guardrail g : activeTier3) {
                 Future<GuardrailResult> future = executor.submit(() -> g.evaluate(input, context));
                 try {
                     GuardrailResult r = future.get(tier3Timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -109,8 +132,12 @@ public final class TieredGuardrailEngine {
             }
         }
 
-        boolean allowed = results.stream().allMatch(GuardrailResult::allowed);
+        boolean allowed = results.isEmpty() || results.stream().allMatch(GuardrailResult::allowed);
         return new EvaluationResult(allowed, List.copyOf(results), finalOutput, Duration.between(start, Instant.now()));
+    }
+
+    private @NonNull List<Guardrail> filterOutputGuardrails(@NonNull List<Guardrail> guardrails) {
+        return guardrails.stream().filter(Guardrail::supportsOutputValidation).toList();
     }
 
     private @NonNull String guardrailName(@NonNull Future<GuardrailResult> f) {
