@@ -822,6 +822,12 @@ public class ChorusObserveAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public PermissionInterceptor permissionInterceptor() {
+        return new PermissionInterceptor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public MetricsService metricsService(@NonNull MeterRegistry meterRegistry) {
         return new MetricsService(meterRegistry);
     }
@@ -840,7 +846,10 @@ public class ChorusObserveAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public WebMvcConfigurer chorusObserveWebMvcConfigurer(@NonNull RequestLoggingInterceptor interceptor, @NonNull ApiVersionInterceptor apiVersionInterceptor) {
+    public WebMvcConfigurer chorusObserveWebMvcConfigurer(
+            @NonNull RequestLoggingInterceptor interceptor,
+            @NonNull ApiVersionInterceptor apiVersionInterceptor,
+            @NonNull PermissionInterceptor permissionInterceptor) {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
@@ -858,6 +867,7 @@ public class ChorusObserveAutoConfiguration {
 
             @Override
             public void addInterceptors(@NonNull InterceptorRegistry registry) {
+                registry.addInterceptor(permissionInterceptor).addPathPatterns("/api/**", "/v1/**");
                 registry.addInterceptor(apiVersionInterceptor).addPathPatterns("/api/**", "/v1/**");
                 registry.addInterceptor(interceptor).addPathPatterns("/api/**", "/v1/**");
             }
