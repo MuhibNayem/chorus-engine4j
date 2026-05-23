@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-05-23)
 
 Phase: 1 of 6 (Security Foundation)
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-05-23 — Milestone v1.0 roadmap created (6 phases, 42 requirements)
+Status: Context gathered — ready to plan
+Last activity: 2026-05-23 — Phase 1 context gathered (3 areas discussed, 12 decisions locked)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -64,8 +64,8 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- [Phase 1] Spring Security 6.5.0 pins in `chorus-observe-server/build.gradle.kts` block all SSO work — must be removed before Phase 2 begins
-- [Phase 3] Cross-tenant data leak at `ExportService.java:65` must be fixed before any export ships (highest-severity defect in milestone)
+- [Phase 1] Spring Security 6.5.0 pins REMOVED in hotfix commit 38e01ea
+- [Phase 3] Cross-tenant data leak FIXED in hotfix commit 38e01ea
 
 ### Pending Todos
 
@@ -87,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-23
-Stopped at: Roadmap created, REQUIREMENTS.md traceability corrected to 42 requirements, STATE.md initialized
-Resume file: None
+Stopped at: Phase 1 context gathered
+Resume file: .planning/phases/01-security-foundation/01-CONTEXT.md
