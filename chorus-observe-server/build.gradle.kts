@@ -25,6 +25,13 @@ java {
 repositories {
     mavenCentral()
     mavenLocal()
+    maven {
+        url = uri("https://build.shibboleth.net/maven/releases/")
+        mavenContent {
+            includeGroup("org.opensaml")
+            includeGroup("net.shibboleth")
+        }
+    }
 }
 
 dependencies {
@@ -47,6 +54,9 @@ dependencies {
     implementation("org.springframework.security:spring-security-crypto")
     implementation("org.springframework.security:spring-security-config")
     implementation("org.springframework.security:spring-security-web")
+    implementation("org.springframework.security:spring-security-oauth2-client")
+    implementation("org.springframework.security:spring-security-oauth2-jose")
+    implementation("org.springframework.security:spring-security-saml2-service-provider")
 
     // JWT
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
