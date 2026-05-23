@@ -12,6 +12,7 @@ import com.chorus.observe.persistence.*;
 import com.chorus.observe.retention.*;
 import com.chorus.observe.sampling.*;
 import com.chorus.observe.security.*;
+import com.chorus.observe.security.oauth2.*;
 import com.chorus.observe.service.*;
 import com.chorus.observe.store.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -955,13 +956,15 @@ public class ChorusObserveAutoConfiguration {
             @NonNull HttpSecurity http,
             @NonNull JwtTokenService jwtTokenService,
             @NonNull ApiKeyRepository apiKeyRepository,
+            @NonNull TenantOauthConfigClientRegistrationRepository clientRegistrationRepository,
+            @NonNull ChorusOauth2AuthenticationSuccessHandler oauth2SuccessHandler,
             @NonNull ChorusObserveProperties properties) throws Exception {
 
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtTokenService, true);
         ApiKeyAuthFilter apiKeyAuthFilter = new ApiKeyAuthFilter(apiKeyRepository, properties.getSecurity().isApiKeyEnabled());
 
         http
-            .securityMatcher("/api/**", "/v1/**", "/actuator/**")
+            .securityMatcher("/api/**", "/v1/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -969,9 +972,14 @@ public class ChorusObserveAutoConfiguration {
                     "/actuator/health", "/actuator/info", "/actuator/prometheus", "/actuator/metrics",
                     "/v3/api-docs", "/swagger-ui", "/swagger-ui.html", "/webjars/**",
                     "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password",
-                    "/api/v1/auth/reset-password", "/api/v1/auth/verify-email"
+                    "/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
+                    "/oauth2/**", "/login/oauth2/**"
                 ).permitAll()
                 .anyRequest().authenticated()
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .clientRegistrationRepository(clientRegistrationRepository)
+                .successHandler(oauth2SuccessHandler)
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -1007,6 +1015,24 @@ public class ChorusObserveAutoConfiguration {
     @ConditionalOnMissingBean
     public ApiKeyRepository apiKeyRepository(@NonNull DataSource dataSource, @NonNull ObjectMapper mapper) {
         return new ApiKeyRepository(dataSource, mapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantOauthConfigRepository tenantOauthConfigRepository(@NonNull DataSource dataSource, @NonNull ObjectMapper mapper) {
+        return new TenantOauthConfigRepository(dataSource, mapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantSamlConfigRepository tenantSamlConfigRepository(@NonNull DataSource dataSource) {
+        return new TenantSamlConfigRepository(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ScimTokenRepository scimTokenRepository(@NonNull DataSource dataSource, @NonNull ObjectMapper mapper) {
+        return new ScimTokenRepository(dataSource, mapper);
     }
 
     @Bean
@@ -1058,6 +1084,47 @@ public class ChorusObserveAutoConfiguration {
     @ConditionalOnMissingBean
     public TenantController tenantController(@NonNull TenantService tenantService) {
         return new TenantController(tenantService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JitProvisioningService jitProvisioningService(@NonNull UserRepository userRepository,
+                                                         @NonNull UserRoleRepository userRoleRepository,
+                                                         @NonNull RoleRepository roleRepository) {
+        return new JitProvisioningService(userRepository, userRoleRepository, roleRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantOauthConfigClientRegistrationRepository clientRegistrationRepository(
+            @NonNull TenantOauthConfigRepository configRepository) {
+        return new TenantOauthConfigClientRegistrationRepository(configRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChorusOauth2AuthenticationSuccessHandler oauth2SuccessHandler(
+            @NonNull JitProvisioningService jitProvisioningService,
+            @NonNull JwtTokenService jwtTokenService,
+            @NonNull TenantOauthConfigRepository configRepository,
+            @NonNull ChorusObserveProperties properties) {
+        return new ChorusOauth2AuthenticationSuccessHandler(
+            jitProvisioningService, jwtTokenService, configRepository, properties.getFrontend().getUrl());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public Oauth2ConfigService oauth2ConfigService(@NonNull TenantOauthConfigRepository configRepository,
+                                                   @NonNull UserRepository userRepository,
+                                                   @NonNull UserRoleRepository userRoleRepository,
+                                                   @NonNull RoleRepository roleRepository) {
+        return new Oauth2ConfigService(configRepository, userRepository, userRoleRepository, roleRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public Oauth2ConfigController oauth2ConfigController(@NonNull Oauth2ConfigService oauth2ConfigService) {
+        return new Oauth2ConfigController(oauth2ConfigService);
     }
 
     // ============================================================
