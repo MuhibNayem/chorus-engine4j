@@ -13,6 +13,7 @@ import com.chorus.observe.retention.*;
 import com.chorus.observe.sampling.*;
 import com.chorus.observe.security.*;
 import com.chorus.observe.security.oauth2.*;
+import com.chorus.observe.security.saml2.*;
 import com.chorus.observe.service.*;
 import com.chorus.observe.store.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -958,13 +959,15 @@ public class ChorusObserveAutoConfiguration {
             @NonNull ApiKeyRepository apiKeyRepository,
             @NonNull TenantOauthConfigClientRegistrationRepository clientRegistrationRepository,
             @NonNull ChorusOauth2AuthenticationSuccessHandler oauth2SuccessHandler,
+            @NonNull TenantSamlConfigRelyingPartyRegistrationRepository relyingPartyRegistrationRepository,
+            @NonNull ChorusSaml2AuthenticationSuccessHandler saml2SuccessHandler,
             @NonNull ChorusObserveProperties properties) throws Exception {
 
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtTokenService, true);
         ApiKeyAuthFilter apiKeyAuthFilter = new ApiKeyAuthFilter(apiKeyRepository, properties.getSecurity().isApiKeyEnabled());
 
         http
-            .securityMatcher("/api/**", "/v1/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**")
+            .securityMatcher("/api/**", "/v1/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/saml2/**", "/login/saml2/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -973,13 +976,17 @@ public class ChorusObserveAutoConfiguration {
                     "/v3/api-docs", "/swagger-ui", "/swagger-ui.html", "/webjars/**",
                     "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password",
                     "/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
-                    "/oauth2/**", "/login/oauth2/**"
+                    "/oauth2/**", "/login/oauth2/**", "/saml2/**", "/login/saml2/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
                 .clientRegistrationRepository(clientRegistrationRepository)
                 .successHandler(oauth2SuccessHandler)
+            )
+            .saml2Login(saml2 -> saml2
+                .relyingPartyRegistrationRepository(relyingPartyRegistrationRepository)
+                .successHandler(saml2SuccessHandler)
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -1125,6 +1132,54 @@ public class ChorusObserveAutoConfiguration {
     @ConditionalOnMissingBean
     public Oauth2ConfigController oauth2ConfigController(@NonNull Oauth2ConfigService oauth2ConfigService) {
         return new Oauth2ConfigController(oauth2ConfigService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MetadataResolver metadataResolver() {
+        return new MetadataResolver();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AssertionIdCache assertionIdCache() {
+        return new AssertionIdCache();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TenantSamlConfigRelyingPartyRegistrationRepository relyingPartyRegistrationRepository(
+            @NonNull TenantSamlConfigRepository configRepository,
+            @NonNull MetadataResolver metadataResolver) {
+        return new TenantSamlConfigRelyingPartyRegistrationRepository(configRepository, metadataResolver);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ChorusSaml2AuthenticationSuccessHandler saml2SuccessHandler(
+            @NonNull JitProvisioningService jitProvisioningService,
+            @NonNull JwtTokenService jwtTokenService,
+            @NonNull AssertionIdCache assertionIdCache,
+            @NonNull TenantSamlConfigRepository configRepository,
+            @NonNull ChorusObserveProperties properties) {
+        return new ChorusSaml2AuthenticationSuccessHandler(
+            jitProvisioningService, jwtTokenService, assertionIdCache, configRepository,
+            properties.getFrontend().getUrl());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SamlConfigService samlConfigService(@NonNull TenantSamlConfigRepository configRepository,
+                                               @NonNull UserRepository userRepository,
+                                               @NonNull UserRoleRepository userRoleRepository,
+                                               @NonNull RoleRepository roleRepository) {
+        return new SamlConfigService(configRepository, userRepository, userRoleRepository, roleRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SamlConfigController samlConfigController(@NonNull SamlConfigService samlConfigService) {
+        return new SamlConfigController(samlConfigService);
     }
 
     // ============================================================
