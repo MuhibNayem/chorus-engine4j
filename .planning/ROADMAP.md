@@ -12,7 +12,7 @@ Milestone v1.0 closes all actionable competitive gaps versus Langfuse, Braintrus
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Security Foundation** - Remove Spring Security 6.5.0 pins so the Boot 4.0.0 BOM resolves Security 7.0.0; all auth tests pass
+- [x] **Phase 1: Security Foundation** - Remove Spring Security 6.5.0 pins so the Boot 4.0.0 BOM resolves Security 7.0.0; all auth tests pass
 - [ ] **Phase 2: Enterprise Authentication** - OAuth2/OIDC SSO + SAML 2.0 + SCIM v2 provisioning sharing a single V7 Flyway migration
 - [ ] **Phase 3: Export Refactor** - Fix cross-tenant data leak, implement real Parquet export, add MinIO/S3 destination
 - [ ] **Phase 4: Low-Risk Additive Features** - Microsoft Teams dispatcher and hallucination evaluator (additive only, no existing flows touched)
