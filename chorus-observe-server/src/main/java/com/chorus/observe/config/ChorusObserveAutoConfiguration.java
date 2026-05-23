@@ -14,6 +14,7 @@ import com.chorus.observe.sampling.*;
 import com.chorus.observe.security.*;
 import com.chorus.observe.security.oauth2.*;
 import com.chorus.observe.security.saml2.*;
+import com.chorus.observe.security.scim.*;
 import com.chorus.observe.service.*;
 import com.chorus.observe.store.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -961,13 +962,14 @@ public class ChorusObserveAutoConfiguration {
             @NonNull ChorusOauth2AuthenticationSuccessHandler oauth2SuccessHandler,
             @NonNull TenantSamlConfigRelyingPartyRegistrationRepository relyingPartyRegistrationRepository,
             @NonNull ChorusSaml2AuthenticationSuccessHandler saml2SuccessHandler,
+            @NonNull ScimTokenAuthFilter scimTokenAuthFilter,
             @NonNull ChorusObserveProperties properties) throws Exception {
 
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtTokenService, true);
         ApiKeyAuthFilter apiKeyAuthFilter = new ApiKeyAuthFilter(apiKeyRepository, properties.getSecurity().isApiKeyEnabled());
 
         http
-            .securityMatcher("/api/**", "/v1/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/saml2/**", "/login/saml2/**")
+            .securityMatcher("/api/**", "/v1/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/saml2/**", "/login/saml2/**", "/scim/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
@@ -989,7 +991,8 @@ public class ChorusObserveAutoConfiguration {
                 .successHandler(saml2SuccessHandler)
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(scimTokenAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -1180,6 +1183,20 @@ public class ChorusObserveAutoConfiguration {
     @ConditionalOnMissingBean
     public SamlConfigController samlConfigController(@NonNull SamlConfigService samlConfigService) {
         return new SamlConfigController(samlConfigService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ScimTokenAuthFilter scimTokenAuthFilter(@NonNull ScimTokenRepository tokenRepository) {
+        return new ScimTokenAuthFilter(tokenRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ScimUserService scimUserService(@NonNull UserRepository userRepository,
+                                           @NonNull UserRoleRepository userRoleRepository,
+                                           @NonNull RoleRepository roleRepository) {
+        return new ScimUserService(userRepository, userRoleRepository, roleRepository);
     }
 
     // ============================================================
