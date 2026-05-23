@@ -115,26 +115,26 @@
 
 ## Traceability
 
-*Updated by roadmapper.*
+*Updated by roadmapper — 2026-05-23*
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01, SEC-02 | Phase 1 | Pending |
-| AUTH-01 – AUTH-06 | Phase 2 | Pending |
-| SAML-01 – SAML-04 | Phase 2 | Pending |
-| SCIM-01 – SCIM-07 | Phase 2 | Pending |
-| EXP-01 – EXP-06 | Phase 3 | Pending |
-| ALERT-01 – ALERT-03 | Phase 4 | Pending |
-| EVAL-01 – EVAL-02 | Phase 4 | Pending |
-| EVAL-03 – EVAL-05 | Phase 5 | Pending |
-| EVAL-06 – EVAL-08 | Phase 5 | Pending |
-| UI-01 – UI-06 | Phase 6 | Pending |
+| SEC-01, SEC-02 | Phase 1 — Security Foundation | Pending |
+| AUTH-01 – AUTH-06 | Phase 2 — Enterprise Authentication | Pending |
+| SAML-01 – SAML-04 | Phase 2 — Enterprise Authentication | Pending |
+| SCIM-01 – SCIM-07 | Phase 2 — Enterprise Authentication | Pending |
+| EXP-01 – EXP-06 | Phase 3 — Export Refactor | Pending |
+| ALERT-01 – ALERT-03 | Phase 4 — Low-Risk Additive Features | Pending |
+| EVAL-01 – EVAL-02 | Phase 4 — Low-Risk Additive Features | Pending |
+| EVAL-03 – EVAL-05 | Phase 5 — Eval Intelligence | Pending |
+| EVAL-06 – EVAL-08 | Phase 5 — Eval Intelligence | Pending |
+| UI-01 – UI-06 | Phase 6 — Frontend Pages | Pending |
 
 **Coverage:**
-- v1.0 requirements: 38 total
-- Mapped to phases: 38
+- v1.0 requirements: 42 total
+- Mapped to phases: 42
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-23*
-*Last updated: 2026-05-23 — milestone v1.0 start*
+*Last updated: 2026-05-23 — roadmap created, coverage corrected to 42 requirements*
