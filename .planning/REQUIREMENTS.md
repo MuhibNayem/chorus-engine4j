@@ -15,29 +15,29 @@
 
 ### Authentication — OAuth2/OIDC SSO
 
-- [ ] **AUTH-01**: User can log in via Google OIDC (SSO button on login page)
-- [ ] **AUTH-02**: User can log in via GitHub OAuth2
-- [ ] **AUTH-03**: User can log in via generic OIDC provider (Azure AD, Okta)
-- [ ] **AUTH-04**: First-time SSO login auto-provisions a user with VIEWER role (JIT provisioning)
-- [ ] **AUTH-05**: SSO login issues a Chorus JWT so the existing RBAC filter continues to work unchanged
-- [ ] **AUTH-06**: Admin can configure OAuth2/OIDC IdP per tenant via settings page
+- [x] **AUTH-01**: User can log in via Google OIDC (SSO button on login page)
+- [x] **AUTH-02**: User can log in via GitHub OAuth2
+- [x] **AUTH-03**: User can log in via generic OIDC provider (Azure AD, Okta)
+- [x] **AUTH-04**: First-time SSO login auto-provisions a user with VIEWER role (JIT provisioning)
+- [x] **AUTH-05**: SSO login issues a Chorus JWT so the existing RBAC filter continues to work unchanged
+- [x] **AUTH-06**: Admin can configure OAuth2/OIDC IdP per tenant via settings page
 
 ### Authentication — SAML 2.0
 
-- [ ] **SAML-01**: User can log in via SP-initiated SAML flow (Okta, Azure AD, ADFS)
-- [ ] **SAML-02**: SAML assertion replay is blocked (assertion ID cache, 2-minute clock skew tolerance)
-- [ ] **SAML-03**: Per-tenant SAML IdP config (entity ID, signing cert, ACS URL) is stored in DB and loaded at request time
-- [ ] **SAML-04**: SAML login JIT-provisions a user on first successful assertion
+- [x] **SAML-01**: User can log in via SP-initiated SAML flow (Okta, Azure AD, ADFS)
+- [x] **SAML-02**: SAML assertion replay is blocked (assertion ID cache, 2-minute clock skew tolerance)
+- [x] **SAML-03**: Per-tenant SAML IdP config (entity ID, signing cert, ACS URL) is stored in DB and loaded at request time
+- [x] **SAML-04**: SAML login JIT-provisions a user on first successful assertion
 
 ### Authentication — SCIM v2
 
-- [ ] **SCIM-01**: IdP can create a user via `POST /scim/v2/Users`
-- [ ] **SCIM-02**: IdP can read, update, and deactivate users via `GET/PUT/PATCH/DELETE /scim/v2/Users/{id}`
-- [ ] **SCIM-03**: SCIM filter queries work (`?filter=userName eq "..."`)
-- [ ] **SCIM-04**: `GET /scim/v2/ServiceProviderConfig` returns supported capabilities
-- [ ] **SCIM-05**: SCIM endpoints authenticate via a separate bearer token (not the user JWT)
-- [ ] **SCIM-06**: SCIM `DELETE` soft-deactivates users — preserves audit trail, no hard delete
-- [ ] **SCIM-07**: Duplicate user creation is prevented via find-before-create and `LOWER(email)` unique index
+- [x] **SCIM-01**: IdP can create a user via `POST /scim/v2/Users`
+- [x] **SCIM-02**: IdP can read, update, and deactivate users via `GET/PUT/PATCH/DELETE /scim/v2/Users/{id}`
+- [x] **SCIM-03**: SCIM filter queries work (`?filter=userName eq "..."`)
+- [x] **SCIM-04**: `GET /scim/v2/ServiceProviderConfig` returns supported capabilities
+- [x] **SCIM-05**: SCIM endpoints authenticate via a separate bearer token (not the user JWT)
+- [x] **SCIM-06**: SCIM `DELETE` soft-deactivates users — preserves audit trail, no hard delete
+- [x] **SCIM-07**: Duplicate user creation is prevented via find-before-create and `LOWER(email)` unique index
 
 ### Export
 

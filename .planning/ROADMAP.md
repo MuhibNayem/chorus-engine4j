@@ -13,7 +13,7 @@ Milestone v1.0 closes all actionable competitive gaps versus Langfuse, Braintrus
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Security Foundation** - Remove Spring Security 6.5.0 pins so the Boot 4.0.0 BOM resolves Security 7.0.0; all auth tests pass
-- [ ] **Phase 2: Enterprise Authentication** - OAuth2/OIDC SSO + SAML 2.0 + SCIM v2 provisioning sharing a single V7 Flyway migration
+- [x] **Phase 2: Enterprise Authentication** - OAuth2/OIDC SSO + SAML 2.0 + SCIM v2 provisioning sharing a single V7 Flyway migration
 - [ ] **Phase 3: Export Refactor** - Fix cross-tenant data leak, implement real Parquet export, add MinIO/S3 destination
 - [ ] **Phase 4: Low-Risk Additive Features** - Microsoft Teams dispatcher and hallucination evaluator (additive only, no existing flows touched)
 - [ ] **Phase 5: Eval Intelligence** - Automated eval generation with human review gate and CI/CD eval gate
@@ -104,7 +104,7 @@ Phases execute in dependency order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 4/4 | ✓ Complete | 2026-05-23 |
-| 2. Enterprise Authentication | 5/5 | Planned | — |
+| 2. Enterprise Authentication | 5/5 | ✓ Complete | 2026-05-23 |
 | 3. Export Refactor | 0/TBD | Not started | - |
 | 4. Low-Risk Additive Features | 0/TBD | Not started | - |
 | 5. Eval Intelligence | 0/TBD | Not started | - |
