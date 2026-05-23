@@ -103,8 +103,8 @@ Phases execute in dependency order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Security Foundation | 0/TBD | Not started | - |
-| 2. Enterprise Authentication | 0/TBD | Not started | - |
+| 1. Security Foundation | 4/4 | ✓ Complete | 2026-05-23 |
+| 2. Enterprise Authentication | 5/5 | Planned | — |
 | 3. Export Refactor | 0/TBD | Not started | - |
 | 4. Low-Risk Additive Features | 0/TBD | Not started | - |
 | 5. Eval Intelligence | 0/TBD | Not started | - |
