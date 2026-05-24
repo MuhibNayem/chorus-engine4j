@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 /**
  * Service for dataset management.
  */
-public class DatasetService {
+public class DatasetService /* TEST MARK */ {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatasetService.class);
 
