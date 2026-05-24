@@ -15,6 +15,9 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -50,8 +53,10 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void shouldAuthenticateWithValidApiKey() throws ServletException, IOException {
+        String rawKey = "cko_testkey123";
+        String keyHash = sha256(rawKey);
         ApiKey key = new ApiKey(
-            "key-1", "tenant-1", "user-1", "test-key",
+            keyHash, "tenant-1", "user-1", "test-key",
             List.of("spans:read"), null, null, Instant.now(), null
         );
         apiKeyRepository.save(key);
@@ -73,7 +78,7 @@ class ApiKeyAuthFilterTest {
             }
         };
         request.setRequestURI("/v1/traces");
-        request.addHeader("X-API-Key", "key-1");
+        request.addHeader("X-API-Key", rawKey);
 
         filter.doFilter(request, response, chain);
 
@@ -83,8 +88,10 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void shouldRejectRevokedApiKey() throws ServletException, IOException {
+        String rawKey = "cko_revokedkey";
+        String keyHash = sha256(rawKey);
         ApiKey key = new ApiKey(
-            "key-1", "tenant-1", "user-1", "test-key",
+            keyHash, "tenant-1", "user-1", "test-key",
             List.of("spans:read"), null, null, Instant.now(), Instant.now()
         );
         apiKeyRepository.save(key);
@@ -93,7 +100,7 @@ class ApiKeyAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
         request.setRequestURI("/v1/traces");
-        request.addHeader("X-API-Key", "key-1");
+        request.addHeader("X-API-Key", rawKey);
 
         filter.doFilter(request, response, chain);
 
@@ -116,8 +123,10 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void shouldClearSecurityContextAfterRequest() throws ServletException, IOException {
+        String rawKey = "cko_cleartestkey";
+        String keyHash = sha256(rawKey);
         ApiKey key = new ApiKey(
-            "key-1", "tenant-1", "user-1", "test-key",
+            keyHash, "tenant-1", "user-1", "test-key",
             List.of("spans:read"), null, null, Instant.now(), null
         );
         apiKeyRepository.save(key);
@@ -126,11 +135,24 @@ class ApiKeyAuthFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
         request.setRequestURI("/v1/traces");
-        request.addHeader("X-API-Key", "key-1");
+        request.addHeader("X-API-Key", rawKey);
 
         filter.doFilter(request, response, chain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         assertThat(TenantContext.isAuthenticated()).isFalse();
+    }
+
+    private static String sha256(String input) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

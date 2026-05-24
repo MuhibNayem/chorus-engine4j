@@ -36,4 +36,3 @@ bin/
 .chorus/
 *.checkpoint
 chorus-studio/
-chorus-observe-server/

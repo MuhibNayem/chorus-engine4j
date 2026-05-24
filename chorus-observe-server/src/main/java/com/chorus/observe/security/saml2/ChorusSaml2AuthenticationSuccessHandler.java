@@ -91,7 +91,9 @@ public class ChorusSaml2AuthenticationSuccessHandler implements AuthenticationSu
 
         String chorusJwt = jwtTokenService.generate(
             tenantId, user.userId(), Set.of());
-        response.sendRedirect(frontendRedirectUrl + "?token=" + chorusJwt);
+        // Pass token in URL fragment (not sent to server) to prevent leakage in
+        // referrer headers, server access logs, and browser history sync.
+        response.sendRedirect(frontendRedirectUrl + "#token=" + chorusJwt);
     }
 
     private String extractAssertionId(@NonNull Saml2Authentication auth) {

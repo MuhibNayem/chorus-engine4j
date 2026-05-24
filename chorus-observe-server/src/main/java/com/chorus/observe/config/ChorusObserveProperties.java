@@ -21,6 +21,10 @@ public class ChorusObserveProperties {
     private Jwt jwt = new Jwt();
     private Sampling sampling = new Sampling();
     private Frontend frontend = new Frontend();
+    private Export export = new Export();
+
+    public Export getExport() { return export; }
+    public void setExport(Export export) { this.export = export; }
 
     public Lock getLock() { return lock; }
 
@@ -203,5 +207,12 @@ public class ChorusObserveProperties {
 
         public String getUrl() { return url; }
         public void setUrl(String url) { this.url = url; }
+    }
+
+    public static class Export {
+        private String encryptionMasterKey = "";
+
+        public String getEncryptionMasterKey() { return encryptionMasterKey; }
+        public void setEncryptionMasterKey(String encryptionMasterKey) { this.encryptionMasterKey = encryptionMasterKey; }
     }
 }

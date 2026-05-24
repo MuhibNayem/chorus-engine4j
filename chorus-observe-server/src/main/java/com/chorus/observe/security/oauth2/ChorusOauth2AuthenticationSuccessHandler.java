@@ -73,7 +73,9 @@ public class ChorusOauth2AuthenticationSuccessHandler implements AuthenticationS
         String chorusJwt = jwtTokenService.generate(
             tenantId, user.userId(), java.util.Set.of());
 
-        String redirect = frontendRedirectUrl + "?token=" + chorusJwt;
+        // Pass token in URL fragment (not sent to server) to prevent leakage in
+        // referrer headers, server access logs, and browser history sync.
+        String redirect = frontendRedirectUrl + "#token=" + chorusJwt;
         response.sendRedirect(redirect);
     }
 }

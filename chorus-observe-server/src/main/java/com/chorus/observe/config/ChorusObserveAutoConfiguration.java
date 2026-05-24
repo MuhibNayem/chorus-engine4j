@@ -6,7 +6,9 @@ import com.chorus.observe.config.ChorusObserveHealthIndicator;
 import com.chorus.observe.dashboard.CustomDashboardService;
 import com.chorus.observe.embedding.EmbeddingInvoker;
 import com.chorus.observe.embedding.HttpEmbeddingInvoker;
-import com.chorus.observe.export.ExportService;
+import com.chorus.observe.eval.*;
+import com.chorus.observe.event.*;
+import com.chorus.observe.export.*;
 import com.chorus.observe.notification.*;
 import com.chorus.observe.persistence.*;
 import com.chorus.observe.retention.*;
@@ -31,6 +33,7 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -255,31 +258,99 @@ public class ChorusObserveAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public EvalResultRunRepository evalResultRunRepository(@NonNull DataSource dataSource) {
+        return new EvalResultRunRepository(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public GeneratedEvalCaseRepository generatedEvalCaseRepository(@NonNull DataSource dataSource, @NonNull ObjectMapper mapper) {
+        return new GeneratedEvalCaseRepository(dataSource, mapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public OtlpIngestionService otlpIngestionService(
             @NonNull RunRepository runRepository,
             @NonNull SpanStore spanStore,
             @NonNull ObjectMapper mapper,
             ObjectProvider<SpanStreamService> streamServiceProvider,
             ObjectProvider<MetricsService> metricsServiceProvider,
-            ObjectProvider<AgentRepository> agentRepositoryProvider) {
+            ObjectProvider<AgentRepository> agentRepositoryProvider,
+            ObjectProvider<ApplicationEventPublisher> eventPublisherProvider) {
         SpanStreamService streamService = streamServiceProvider.getIfAvailable();
         MetricsService metricsService = metricsServiceProvider.getIfAvailable();
         AgentRepository agentRepository = agentRepositoryProvider.getIfAvailable();
-        return new OtlpIngestionService(runRepository, spanStore, mapper, streamService, metricsService, agentRepository);
+        ApplicationEventPublisher eventPublisher = eventPublisherProvider.getIfAvailable();
+        return new OtlpIngestionService(runRepository, spanStore, mapper, streamService, metricsService, agentRepository, eventPublisher);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public NgramHallucinationScorer ngramHallucinationScorer() {
+        return new NgramHallucinationScorer();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public LlmJudgeHallucinationScorer llmJudgeHallucinationScorer(@NonNull ObjectMapper mapper) {
+        return new LlmJudgeHallucinationScorer(mapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public EvaluatorService evaluatorService(
             @NonNull EvaluatorRepository evaluatorRepository,
-            @NonNull RunEvaluationRepository runEvaluationRepository) {
-        return new EvaluatorService(evaluatorRepository, runEvaluationRepository);
+            @NonNull RunEvaluationRepository runEvaluationRepository,
+            @NonNull LlmCallRepository llmCallRepository,
+            @NonNull NgramHallucinationScorer ngramScorer,
+            @NonNull LlmJudgeHallucinationScorer llmJudgeScorer) {
+        return new EvaluatorService(evaluatorRepository, runEvaluationRepository, llmCallRepository, ngramScorer, llmJudgeScorer);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public EvaluatorController evaluatorController(@NonNull EvaluatorService evaluatorService) {
         return new EvaluatorController(evaluatorService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RunCompletedEventListener runCompletedEventListener(
+            @NonNull EvaluatorRepository evaluatorRepository,
+            @NonNull EvaluatorService evaluatorService) {
+        return new RunCompletedEventListener(evaluatorRepository, evaluatorService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EvalGenerationService evalGenerationService(
+            @NonNull RunRepository runRepository,
+            @NonNull LlmCallRepository llmCallRepository,
+            @NonNull SpanRepository spanRepository,
+            @NonNull GeneratedEvalCaseRepository generatedEvalCaseRepository) {
+        return new EvalGenerationService(runRepository, llmCallRepository, spanRepository, generatedEvalCaseRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EvalReviewService evalReviewService(
+            @NonNull GeneratedEvalCaseRepository generatedEvalCaseRepository,
+            @NonNull DatasetRepository datasetRepository,
+            @NonNull DatasetItemRepository datasetItemRepository) {
+        return new EvalReviewService(generatedEvalCaseRepository, datasetRepository, datasetItemRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EvalGenerationController evalGenerationController(@NonNull EvalGenerationService evalGenerationService) {
+        return new EvalGenerationController(evalGenerationService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EvalReviewController evalReviewController(@NonNull EvalReviewService evalReviewService) {
+        return new EvalReviewController(evalReviewService);
     }
 
     @Bean
@@ -543,11 +614,13 @@ public class ChorusObserveAutoConfiguration {
             @NonNull DatasetItemRepository datasetItemRepository,
             @NonNull EvalRunRepository evalRunRepository,
             @NonNull EvalResultRepository evalResultRepository,
+            ObjectProvider<EvalResultRunRepository> evalResultRunRepositoryProvider,
             @NonNull AgentInvoker agentInvoker,
             @NonNull ObjectMapper mapper,
             ObjectProvider<MetricsService> metricsServiceProvider) {
+        EvalResultRunRepository evalResultRunRepository = evalResultRunRepositoryProvider.getIfAvailable();
         MetricsService metricsService = metricsServiceProvider.getIfAvailable();
-        return new EvalService(datasetRepository, datasetItemRepository, evalRunRepository, evalResultRepository, agentInvoker, mapper, metricsService);
+        return new EvalService(datasetRepository, datasetItemRepository, evalRunRepository, evalResultRepository, evalResultRunRepository, agentInvoker, mapper, metricsService);
     }
 
     @Bean
@@ -800,7 +873,7 @@ public class ChorusObserveAutoConfiguration {
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(@NonNull ChorusObserveProperties properties) {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new RateLimitFilter(properties.getRateLimit().getMaxRequestsPerMinute(), properties.getRateLimit().isEnabled()));
-        registration.addUrlPatterns("/api/*", "/v1/*");
+        registration.addUrlPatterns("/api/*", "/v1/*", "/scim/*", "/auth/*");
         registration.setOrder(2);
         return registration;
     }
@@ -852,19 +925,23 @@ public class ChorusObserveAutoConfiguration {
     public WebMvcConfigurer chorusObserveWebMvcConfigurer(
             @NonNull RequestLoggingInterceptor interceptor,
             @NonNull ApiVersionInterceptor apiVersionInterceptor,
-            @NonNull PermissionInterceptor permissionInterceptor) {
+            @NonNull PermissionInterceptor permissionInterceptor,
+            @NonNull ChorusObserveProperties properties) {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
+                String frontendUrl = properties.getFrontend().getUrl();
                 registry.addMapping("/api/**")
-                    .allowedOrigins("*")
+                    .allowedOrigins(frontendUrl)
                     .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                    .allowedHeaders("*")
+                    .allowedHeaders("Authorization", "Content-Type", "X-API-Key", "X-Tenant-Id", "X-Trace-Id")
+                    .allowCredentials(true)
                     .maxAge(3600);
                 registry.addMapping("/v1/**")
-                    .allowedOrigins("*")
+                    .allowedOrigins(frontendUrl)
                     .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                    .allowedHeaders("*")
+                    .allowedHeaders("Authorization", "Content-Type", "X-API-Key", "X-Tenant-Id", "X-Trace-Id")
+                    .allowCredentials(true)
                     .maxAge(3600);
             }
 
@@ -972,6 +1049,13 @@ public class ChorusObserveAutoConfiguration {
             .securityMatcher("/api/**", "/v1/**", "/actuator/**", "/oauth2/**", "/login/oauth2/**", "/saml2/**", "/login/saml2/**", "/scim/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(contentType -> {})
+                .httpStrictTransportSecurity(hsts -> hsts.maxAgeInSeconds(31536000).includeSubDomains(true))
+                .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"))
+                .referrerPolicy(referrer -> referrer.policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/actuator/health", "/actuator/info", "/actuator/prometheus", "/actuator/metrics",
@@ -1268,14 +1352,101 @@ public class ChorusObserveAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ExportService exportService(@NonNull ExportJobRepository exportJobRepository, @NonNull DataSource chorusObserveDataSource) {
-        return new ExportService(exportJobRepository, chorusObserveDataSource);
+    public SchemaRegistry schemaRegistry() {
+        SchemaRegistry registry = new SchemaRegistry();
+        registry.register("SpanExport", 1, SpanExportRecord.class, SchemaRegistry.Compatibility.BACKWARD);
+        registry.register("MetricExport", 1, MetricExportRecord.class, SchemaRegistry.Compatibility.BACKWARD);
+        return registry;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ParquetExportWriter parquetExportWriter(@NonNull SchemaRegistry schemaRegistry) {
+        return new ParquetExportWriter(schemaRegistry);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExportQueryBuilder exportQueryBuilder() {
+        return new ExportQueryBuilder();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CredentialEncryptionService credentialEncryptionService(@NonNull ChorusObserveProperties properties) {
+        return new CredentialEncryptionService(properties.getExport().getEncryptionMasterKey());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public S3ExportClient s3ExportClient(@NonNull CredentialEncryptionService encryptionService) {
+        return new S3ExportClient(encryptionService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExportConfigRepository exportConfigRepository(@NonNull DataSource dataSource) {
+        return new ExportConfigRepository(dataSource);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExportService exportService(
+            @NonNull ExportJobRepository exportJobRepository,
+            @NonNull DataSource chorusObserveDataSource,
+            ObjectProvider<DataSource> clickHouseDataSourceProvider,
+            @NonNull ParquetExportWriter parquetExportWriter,
+            @NonNull ExportQueryBuilder exportQueryBuilder,
+            @NonNull ExportConfigRepository exportConfigRepository,
+            @NonNull S3ExportClient s3ExportClient,
+            @NonNull ObjectMapper chorusObserveObjectMapper) {
+        DataSource chDs = clickHouseDataSourceProvider.getIfAvailable();
+        return new ExportService(exportJobRepository, chorusObserveDataSource, chDs,
+            parquetExportWriter, exportQueryBuilder, exportConfigRepository, s3ExportClient, chorusObserveObjectMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public ExportController exportController(@NonNull ExportService exportService, @NonNull ExportJobRepository exportJobRepository) {
         return new ExportController(exportService, exportJobRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExportConfigController exportConfigController(
+            @NonNull ExportConfigRepository exportConfigRepository,
+            @NonNull CredentialEncryptionService credentialEncryptionService) {
+        return new ExportConfigController(exportConfigRepository, credentialEncryptionService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PlaygroundController playgroundController(@NonNull ObjectMapper mapper) {
+        return new PlaygroundController(mapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public InsightsController insightsController(@NonNull TraceClusterService traceClusterService) {
+        return new InsightsController(traceClusterService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public FeedbackQueueController feedbackQueueController(@NonNull FeedbackRepository feedbackRepository) {
+        return new FeedbackQueueController(feedbackRepository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RagController ragController() {
+        return new RagController();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExportJobScheduler exportJobScheduler(@NonNull ExportJobRepository exportJobRepository, @NonNull ExportService exportService) {
+        return new ExportJobScheduler(exportJobRepository, exportService);
     }
 
     // ============================================================
@@ -1320,10 +1491,25 @@ public class ChorusObserveAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public TeamsDispatcher teamsDispatcher(@NonNull ObjectMapper mapper) {
+        return new TeamsDispatcher(mapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public NotificationService notificationService(@NonNull NotificationChannelRepository notificationChannelRepository,
                                                    @NonNull AlertRuleChannelRepository alertRuleChannelRepository,
+                                                   @NonNull AlertEventRepository alertEventRepository,
                                                    @NonNull List<NotificationDispatcher> dispatchers) {
-        return new NotificationService(notificationChannelRepository, alertRuleChannelRepository, dispatchers);
+        return new NotificationService(notificationChannelRepository, alertRuleChannelRepository, alertEventRepository, dispatchers);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AlertRetryScheduler alertRetryScheduler(@NonNull AlertEventRepository alertEventRepository,
+                                                   @NonNull AlertRuleRepository alertRuleRepository,
+                                                   @NonNull NotificationService notificationService) {
+        return new AlertRetryScheduler(alertEventRepository, alertRuleRepository, notificationService);
     }
 
     @Bean

@@ -69,6 +69,12 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("com.clickhouse:clickhouse-jdbc:0.7.1")
 
+    // Parquet export
+    implementation("com.jerolba:carpet-record:0.6.1")
+
+    // S3 / MinIO export
+    implementation("software.amazon.awssdk:s3:2.29.0")
+
     // Chorus Engine modules (version managed by BOM)
     implementation(platform("io.github.muhibnayem:chorus-engine-bom:0.1.7"))
     implementation("io.github.muhibnayem:chorus-engine-evals")
