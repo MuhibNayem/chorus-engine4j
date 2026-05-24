@@ -20,9 +20,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * JDBC repository for evaluation runs.
- */
 public class EvalRunRepository {
 
     private final JdbcTemplate jdbc;
@@ -163,6 +160,10 @@ public class EvalRunRepository {
         } else {
             jdbc.update("DELETE FROM eval_runs WHERE eval_run_id = ?", evalRunId);
         }
+    }
+
+    public @NonNull List<EvalRun> findByStatusIgnoringTenant(EvalRun.Status status) {
+        return jdbc.query("SELECT * FROM eval_runs WHERE status = ? ORDER BY created_at DESC", rowMapper, status.name());
     }
 
     private @NonNull String toJson(@NonNull Object value) {

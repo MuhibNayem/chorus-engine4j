@@ -1,6 +1,7 @@
 package com.chorus.observe.persistence;
 
 import com.chorus.observe.model.EvalResultRun;
+import com.chorus.observe.security.TenantContext;
 import org.jspecify.annotations.NonNull;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -26,10 +27,12 @@ public class EvalResultRunRepository {
     }
 
     public void save(@NonNull EvalResultRun resultRun) {
+        String tenantId = TenantContext.getTenantIdOrNull();
         String sql = """
-            INSERT INTO eval_result_runs (result_run_id, result_id, run_number, score, passed, actual_output, reasoning, latency_ms, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO eval_result_runs (result_run_id, tenant_id, result_id, run_number, score, passed, actual_output, reasoning, latency_ms, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (result_id, run_number) DO UPDATE SET
+                tenant_id = EXCLUDED.tenant_id,
                 score = EXCLUDED.score,
                 passed = EXCLUDED.passed,
                 actual_output = EXCLUDED.actual_output,
@@ -37,7 +40,7 @@ public class EvalResultRunRepository {
                 latency_ms = EXCLUDED.latency_ms
             """;
         jdbc.update(sql,
-            resultRun.resultRunId(), resultRun.resultId(), resultRun.runNumber(),
+            resultRun.resultRunId(), tenantId != null ? tenantId : "default", resultRun.resultId(), resultRun.runNumber(),
             resultRun.score(), resultRun.passed(), resultRun.actualOutput(),
             resultRun.reasoning(), resultRun.latencyMs(),
             Timestamp.from(resultRun.createdAt())
@@ -45,13 +48,24 @@ public class EvalResultRunRepository {
     }
 
     public @NonNull List<EvalResultRun> findByResultId(@NonNull String resultId) {
+        String tenantId = TenantContext.getTenantIdOrNull();
+        if (tenantId != null) {
+            return jdbc.query(
+                "SELECT * FROM eval_result_runs WHERE result_id = ? AND tenant_id = ? ORDER BY run_number",
+                rowMapper, resultId, tenantId);
+        }
         return jdbc.query(
             "SELECT * FROM eval_result_runs WHERE result_id = ? ORDER BY run_number",
             rowMapper, resultId);
     }
 
     public void deleteByResultId(@NonNull String resultId) {
-        jdbc.update("DELETE FROM eval_result_runs WHERE result_id = ?", resultId);
+        String tenantId = TenantContext.getTenantIdOrNull();
+        if (tenantId != null) {
+            jdbc.update("DELETE FROM eval_result_runs WHERE result_id = ? AND tenant_id = ?", resultId, tenantId);
+        } else {
+            jdbc.update("DELETE FROM eval_result_runs WHERE result_id = ?", resultId);
+        }
     }
 
     private static final class EvalResultRunRowMapper implements RowMapper<EvalResultRun> {
