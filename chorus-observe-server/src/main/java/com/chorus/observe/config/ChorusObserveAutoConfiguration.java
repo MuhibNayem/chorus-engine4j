@@ -72,6 +72,7 @@ import java.util.List;
 @EnableConfigurationProperties(ChorusObserveProperties.class)
 @EnableScheduling
 @EnableMethodSecurity
+@EnableTransactionManagement
 @ConditionalOnProperty(prefix = "chorus.observe", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class ChorusObserveAutoConfiguration {
 
@@ -90,6 +91,11 @@ public class ChorusObserveAutoConfiguration {
      */
     @Bean
     @Primary
+    @ConditionalOnMissingBean
+    public org.springframework.transaction.PlatformTransactionManager chorusObserveTransactionManager(@NonNull DataSource chorusObserveDataSource) {
+        return new org.springframework.jdbc.datasource.DataSourceTransactionManager(chorusObserveDataSource);
+    }
+
     @ConditionalOnMissingBean(name = "chorusObserveDataSource")
     public DataSource chorusObserveDataSource(@NonNull ChorusObserveProperties properties, org.springframework.beans.factory.ObjectProvider<DataSource> primaryDataSource) {
         ChorusObserveProperties.Database db = properties.getDatabase();

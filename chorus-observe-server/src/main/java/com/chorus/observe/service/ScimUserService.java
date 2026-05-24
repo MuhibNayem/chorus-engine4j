@@ -9,6 +9,7 @@ import com.chorus.observe.security.scim.ScimFilterParser;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -103,6 +104,7 @@ public class ScimUserService {
         return toDto(updated);
     }
 
+    @Transactional
     public void deactivateUser(@NonNull String tenantId, @NonNull String userId) {
         User existing = userRepository.findById(userId)
             .filter(u -> u.tenantId().equals(tenantId))

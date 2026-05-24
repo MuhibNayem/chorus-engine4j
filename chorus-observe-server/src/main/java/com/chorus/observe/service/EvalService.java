@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.*;
 import jakarta.annotation.PostConstruct;
@@ -141,6 +142,7 @@ public class EvalService {
 
     @Timed(value = "eval.start", description = "Time spent starting an eval run")
     @Counted(value = "eval.start.count", description = "Total number of eval run starts")
+    @Transactional
     public void startEvalRun(@NonNull String evalRunId) {
         Optional<EvalRun> opt = evalRunRepository.findById(evalRunId);
         if (opt.isEmpty()) return;
