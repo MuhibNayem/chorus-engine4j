@@ -10,8 +10,8 @@
 
 ### Phase 0 — Security Migration Prerequisite
 
-- [ ] **SEC-01**: Dev removes explicit Spring Security 6.5.0 version pins from `chorus-observe-server/build.gradle.kts` so the Boot 4.0.0 BOM resolves Security 7.0.0
-- [ ] **SEC-02**: All existing JWT/RBAC auth tests pass against Security 7.0.0 with no filter-chain regressions
+- [x] **SEC-01**: Dev removes explicit Spring Security 6.5.0 version pins from `chorus-observe-server/build.gradle.kts` so the Boot 4.0.0 BOM resolves Security 7.0.0
+- [x] **SEC-02**: All existing JWT/RBAC auth tests pass against Security 7.0.0 with no filter-chain regressions
 
 ### Authentication — OAuth2/OIDC SSO
 
@@ -41,44 +41,44 @@
 
 ### Export
 
-- [ ] **EXP-01**: Cross-tenant data leak at `ExportService.java:65` is fixed (`tenant_id` filter on all export queries)
-- [ ] **EXP-02**: User can export spans as real Apache Parquet files (`carpet-record:0.7.1`, Hive-partitioned by date)
-- [ ] **EXP-03**: Parquet files are readable by pandas, DuckDB, and Athena with correct column types
-- [ ] **EXP-04**: Parquet schema version is embedded in file metadata for schema evolution support
-- [ ] **EXP-05**: User can configure a MinIO (or any S3-compatible) endpoint as export destination (AWS SDK v2 custom endpoint)
-- [ ] **EXP-06**: Export page in Chorus Studio lets user configure jobs, view job status, and download results
+- [x] **EXP-01**: Cross-tenant data leak at `ExportService.java:65` is fixed (`tenant_id` filter on all export queries)
+- [x] **EXP-02**: User can export spans as real Apache Parquet files (`carpet-record:0.7.1`, Hive-partitioned by date)
+- [x] **EXP-03**: Parquet files are readable by pandas, DuckDB, and Athena with correct column types
+- [x] **EXP-04**: Parquet schema version is embedded in file metadata for schema evolution support
+- [x] **EXP-05**: User can configure a MinIO (or any S3-compatible) endpoint as export destination (AWS SDK v2 custom endpoint)
+- [x] **EXP-06**: Export page in Chorus Studio lets user configure jobs, view job status, and download results
 
 ### Alerting
 
-- [ ] **ALERT-01**: User can receive alert notifications in Microsoft Teams via Power Automate webhook
-- [ ] **ALERT-02**: Teams webhook URL is masked in all API responses (never returned in plaintext)
-- [ ] **ALERT-03**: Teams alerts use Adaptive Card JSON payload (no legacy O365 connector format)
+- [x] **ALERT-01**: User can receive alert notifications in Microsoft Teams via Power Automate webhook
+- [x] **ALERT-02**: Teams webhook URL is masked in all API responses (never returned in plaintext)
+- [x] **ALERT-03**: Teams alerts use Adaptive Card JSON payload (no legacy O365 connector format)
 
 ### Evaluations — Hallucination Evaluator
 
-- [ ] **EVAL-01**: `HallucinationScorer` is exposed as evaluator kind `"hallucination"` via `EvaluatorController`
-- [ ] **EVAL-02**: Hallucination evaluator runs asynchronously post-ingestion (never on the OTLP hot path)
+- [x] **EVAL-01**: `HallucinationScorer` is exposed as evaluator kind `"hallucination"` via `EvaluatorController`
+- [x] **EVAL-02**: Hallucination evaluator runs asynchronously post-ingestion (never on the OTLP hot path)
 
 ### Evaluations — Automated Eval Generation
 
-- [ ] **EVAL-03**: User can trigger automated eval case generation from a set of production run IDs
-- [ ] **EVAL-04**: Generated cases require human approval before entering a dataset (`GENERATED → PENDING_REVIEW → APPROVED` — no auto-approval path)
-- [ ] **EVAL-05**: Generated case review UI shows source trace ID alongside the proposed input/expected output
+- [x] **EVAL-03**: User can trigger automated eval case generation from a set of production run IDs
+- [x] **EVAL-04**: Generated cases require human approval before entering a dataset (`GENERATED → PENDING_REVIEW → APPROVED` — no auto-approval path)
+- [x] **EVAL-05**: Generated case review UI shows source trace ID alongside the proposed input/expected output
 
 ### Evaluations — CI/CD Gate
 
-- [ ] **EVAL-06**: CI/CD eval gate GitHub Action triggers an eval run against a dataset and fails the build on regression
-- [ ] **EVAL-07**: Eval gate uses 3-run median scoring per case (prevents LLM non-determinism flap)
-- [ ] **EVAL-08**: Eval gate exits with code 1 for eval regression, code 2 for infrastructure error, with retry on code 2
+- [x] **EVAL-06**: CI/CD eval gate GitHub Action triggers an eval run against a dataset and fails the build on regression
+- [x] **EVAL-07**: Eval gate uses 3-run median scoring per case (prevents LLM non-determinism flap)
+- [x] **EVAL-08**: Eval gate exits with code 1 for eval regression, code 2 for infrastructure error, with retry on code 2
 
 ### Frontend Pages
 
-- [ ] **UI-01**: `/prompts` page lists all prompt versions with tags, creation date, and A/B test status
-- [ ] **UI-02**: `/playground` page lets user execute a prompt variant live, compare model outputs, and view cost estimate
-- [ ] **UI-03**: `/insights` page shows conversation clusters with representative traces, topic labels, and counts
-- [ ] **UI-04**: `/feedback` page shows annotation queue with score, skip, and comment workflow
-- [ ] **UI-05**: `/export` page lets user configure export jobs, view job status, and download results
-- [ ] **UI-06**: `/rag` page shows RAG retrieval metrics: context precision, recall, latency, and hit rate
+- [x] **UI-01**: `/prompts` page lists all prompt versions with tags, creation date, and A/B test status
+- [x] **UI-02**: `/playground` page lets user execute a prompt variant live, compare model outputs, and view cost estimate
+- [x] **UI-03**: `/insights` page shows conversation clusters with representative traces, topic labels, and counts
+- [x] **UI-04**: `/feedback` page shows annotation queue with score, skip, and comment workflow
+- [x] **UI-05**: `/export` page lets user configure export jobs, view job status, and download results
+- [x] **UI-06**: `/rag` page shows RAG retrieval metrics: context precision, recall, latency, and hit rate
 
 ---
 
@@ -119,16 +119,16 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01, SEC-02 | Phase 1 — Security Foundation | Pending |
-| AUTH-01 – AUTH-06 | Phase 2 — Enterprise Authentication | Pending |
-| SAML-01 – SAML-04 | Phase 2 — Enterprise Authentication | Pending |
-| SCIM-01 – SCIM-07 | Phase 2 — Enterprise Authentication | Pending |
-| EXP-01 – EXP-06 | Phase 3 — Export Refactor | Pending |
-| ALERT-01 – ALERT-03 | Phase 4 — Low-Risk Additive Features | Pending |
-| EVAL-01 – EVAL-02 | Phase 4 — Low-Risk Additive Features | Pending |
-| EVAL-03 – EVAL-05 | Phase 5 — Eval Intelligence | Pending |
-| EVAL-06 – EVAL-08 | Phase 5 — Eval Intelligence | Pending |
-| UI-01 – UI-06 | Phase 6 — Frontend Pages | Pending |
+| SEC-01, SEC-02 | Phase 1 — Security Foundation | Complete |
+| AUTH-01 – AUTH-06 | Phase 2 — Enterprise Authentication | Complete |
+| SAML-01 – SAML-04 | Phase 2 — Enterprise Authentication | Complete |
+| SCIM-01 – SCIM-07 | Phase 2 — Enterprise Authentication | Complete |
+| EXP-01 – EXP-06 | Phase 3 — Export Refactor | Complete |
+| ALERT-01 – ALERT-03 | Phase 4 — Low-Risk Additive Features | Complete |
+| EVAL-01 – EVAL-02 | Phase 4 — Low-Risk Additive Features | Complete |
+| EVAL-03 – EVAL-05 | Phase 5 — Eval Intelligence | Complete |
+| EVAL-06 – EVAL-08 | Phase 5 — Eval Intelligence | Complete |
+| UI-01 – UI-06 | Phase 6 — Frontend Pages | Complete |
 
 **Coverage:**
 - v1.0 requirements: 42 total
@@ -137,4 +137,4 @@
 
 ---
 *Requirements defined: 2026-05-23*
-*Last updated: 2026-05-23 — roadmap created, coverage corrected to 42 requirements*
+*Last updated: 2026-05-23 — all 42 requirements implemented and verified*

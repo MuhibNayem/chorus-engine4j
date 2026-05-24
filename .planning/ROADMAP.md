@@ -14,10 +14,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Security Foundation** - Remove Spring Security 6.5.0 pins so the Boot 4.0.0 BOM resolves Security 7.0.0; all auth tests pass
 - [x] **Phase 2: Enterprise Authentication** - OAuth2/OIDC SSO + SAML 2.0 + SCIM v2 provisioning sharing a single V7 Flyway migration
-- [ ] **Phase 3: Export Refactor** - Fix cross-tenant data leak, implement real Parquet export, add MinIO/S3 destination
-- [ ] **Phase 4: Low-Risk Additive Features** - Microsoft Teams dispatcher and hallucination evaluator (additive only, no existing flows touched)
-- [ ] **Phase 5: Eval Intelligence** - Automated eval generation with human review gate and CI/CD eval gate
-- [ ] **Phase 6: Frontend Pages** - Six new Next.js 14 app-router pages wiring all enterprise backend APIs
+- [x] **Phase 3: Export Refactor** - Fix cross-tenant data leak, implement real Parquet export, add MinIO/S3 destination
+- [x] **Phase 4: Low-Risk Additive Features** - Microsoft Teams dispatcher and hallucination evaluator (additive only, no existing flows touched)
+- [x] **Phase 5: Eval Intelligence** - Automated eval generation with human review gate and CI/CD eval gate
+- [x] **Phase 6: Frontend Pages** - Six new Next.js 15 app-router pages wiring all enterprise backend APIs
 
 ## Phase Details
 
@@ -105,11 +105,11 @@ Phases execute in dependency order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 4/4 | ✓ Complete | 2026-05-23 |
 | 2. Enterprise Authentication | 5/5 | ✓ Complete | 2026-05-23 |
-| 3. Export Refactor | 0/TBD | Not started | - |
-| 4. Low-Risk Additive Features | 0/TBD | Not started | - |
-| 5. Eval Intelligence | 0/TBD | Not started | - |
-| 6. Frontend Pages | 0/TBD | Not started | - |
+| 3. Export Refactor | 5/5 | ✓ Complete | 2026-05-23 |
+| 4. Low-Risk Additive Features | 4/4 | ✓ Complete | 2026-05-23 |
+| 5. Eval Intelligence | 2/2 | ✓ Complete | 2026-05-23 |
+| 6. Frontend Pages | 2/2 | ✓ Complete | 2026-05-23 |
 
 ---
-*Roadmap created: 2026-05-23 — Milestone v1.0 Enterprise Feature Parity*
+*Roadmap updated: 2026-05-23 — Milestone v1.0 Enterprise Feature Parity — ALL PHASES COMPLETE*
 *42 requirements mapped across 6 phases — coverage: 100%*
