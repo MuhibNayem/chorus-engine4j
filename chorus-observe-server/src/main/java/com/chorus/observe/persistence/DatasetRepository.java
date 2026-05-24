@@ -20,9 +20,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * JDBC repository for datasets.
- */
 public class DatasetRepository {
 
     private final JdbcTemplate jdbc;
