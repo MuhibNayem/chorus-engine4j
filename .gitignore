@@ -37,3 +37,4 @@ bin/
 *.checkpoint
 chorus-studio/
 chorus-observer-server/
+.claude/
