@@ -79,6 +79,7 @@ public final class ClaudeCodeApplication {
         configureMemory();
         configureEffort(cliArgs);
 
+        executor = Executors.newVirtualThreadPerTaskExecutor();
         integrations = new ModuleIntegrations(renderer, llmClient, toolRegistry, executor);
         integrations.initTelemetry();
         integrations.initGuardrails();
@@ -329,7 +330,9 @@ public final class ClaudeCodeApplication {
     // ---- Agent Configuration ----
 
     void configureAgent() {
-        executor = Executors.newVirtualThreadPerTaskExecutor();
+        if (executor == null) {
+            executor = Executors.newVirtualThreadPerTaskExecutor();
+        }
         List<Middleware> middlewares = new ArrayList<>();
         middlewares.add(session.getAgentMdMiddleware());
         middlewares.add(checkpointManager.toMiddleware());
