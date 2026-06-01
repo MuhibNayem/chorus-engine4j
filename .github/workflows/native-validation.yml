@@ -57,7 +57,7 @@ jobs:
 
       - name: Verify Native Executable & Startup Health
         run: |
-          BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-engine-sample"
+          BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-code"
           if [ ! -f "$BINARY" ]; then
             echo "ERROR: Native binary not found at $BINARY"
             exit 1
@@ -103,5 +103,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chorus-engine-native-linux-amd64
-          path: chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-engine-sample
+          path: chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-code
           if-no-files-found: error
