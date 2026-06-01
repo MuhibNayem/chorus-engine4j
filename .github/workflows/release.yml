@@ -80,6 +80,14 @@ jobs:
         env:
           SIGNING_SECRET_KEY: ${{ secrets.SIGNING_SECRET_KEY }}
 
+      - name: Normalize signing password
+        run: |
+          # GitHub secrets cannot be empty; a single space means no passphrase
+          TRIMMED="${SIGNING_PASSWORD// /}"
+          echo "SIGNING_PASSWORD_NORMALIZED=$TRIMMED" >> "$GITHUB_ENV"
+        env:
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+
       - name: Extract version from tag
         run: |
           VERSION=${GITHUB_REF_NAME#v}
@@ -99,4 +107,4 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ env.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ env.SIGNING_PASSWORD_NORMALIZED }}
