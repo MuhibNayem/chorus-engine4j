@@ -46,7 +46,7 @@ public final class ClaudeCodeApplication {
 
     private final CliRenderer renderer = new CliRenderer();
     private final CliSession session = new CliSession();
-    private final SkillCommands skills = new SkillCommands(renderer, session);
+    private final SkillCommands skills = new SkillCommands(renderer, session, this::handleChat);
     private final SessionStore sessionStore = new SessionStore();
     private final AtomicBoolean running = new AtomicBoolean(true);
 
@@ -123,8 +123,6 @@ public final class ClaudeCodeApplication {
 
         executor.shutdown();
     }
-
-    record JsonOutput(String type, String content, String toolCall, Map<String, Object> args, Integer round, Long timestamp) {}
 
     void outputText(Flow.Publisher<AgentEvent> events, CancellationToken token) {
         var subscriber = new TextStreamSubscriber();

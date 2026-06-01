@@ -66,6 +66,12 @@ public class GuardrailAnnotationProcessor implements BeanDefinitionRegistryPostP
             Guardrail ann = AnnotationUtils.findAnnotation(g.getClass(), Guardrail.class);
             return ann != null ? ann.tier() : Integer.MAX_VALUE;
         }));
+
+        if (!guardrails.isEmpty()) {
+            TieredGuardrailEngine engine = beanFactory.getBean("tieredGuardrailEngine",
+                TieredGuardrailEngine.class);
+            engine.register(guardrails);
+        }
     }
 
     private Class<?> resolveBeanClass(BeanDefinition bd, ConfigurableListableBeanFactory beanFactory) {

@@ -76,6 +76,9 @@ public final class HitlGate {
             if (decision == HitlDecision.APPROVE_SESSION) {
                 sessionApprovedTools.add(toolName);
             }
+            if (decision == HitlDecision.REJECT && gate.rejectedReason != null) {
+                return Result.err(new HitlError("REJECTED", gate.rejectedReason, false));
+            }
 
             return Result.ok(decision);
         } catch (TimeoutException e) {
@@ -105,7 +108,7 @@ public final class HitlGate {
         PendingGate gate = gates.get(gateId);
         if (gate != null) {
             sessionApprovedTools.add(gate.toolName);
-            gate.future.complete(HitlDecision.APPROVE);
+            gate.future.complete(HitlDecision.APPROVE_SESSION);
             return true;
         }
         return false;
@@ -114,10 +117,21 @@ public final class HitlGate {
     public boolean reject(@NonNull String gateId, @Nullable String reason) {
         PendingGate gate = gates.get(gateId);
         if (gate != null) {
+            gate.rejectedReason = reason;
             gate.future.complete(HitlDecision.REJECT);
             return true;
         }
         return false;
+    }
+
+    /**
+     * Returns the rejection reason recorded by the most recent {@link #reject} call
+     * for the given gate, or {@code null} if the gate is unknown, was approved,
+     * or no reason was provided.
+     */
+    public @Nullable String rejectionReason(@NonNull String gateId) {
+        PendingGate gate = gates.get(gateId);
+        return gate != null ? gate.rejectedReason : null;
     }
 
     /**
@@ -152,13 +166,17 @@ public final class HitlGate {
         final Map<String, Object> arguments;
         final Instant createdAt;
         final CompletableFuture<HitlDecision> future = new CompletableFuture<>();
+        
+        volatile @Nullable String rejectedReason;
 
-        PendingGate(String gateId, String runId, String toolName, Map<String, Object> arguments, Instant createdAt) {
-            this.gateId = gateId;
-            this.runId = runId;
-            this.toolName = toolName;
-            this.arguments = Map.copyOf(arguments);
-            this.createdAt = createdAt;
+
+        PendingGate(String gateId, String runId, String toolName,
+                    Map<String, Object> arguments, Instant createdAt) {
+            this.gateId     = gateId;
+            this.runId      = runId;
+            this.toolName   = toolName;
+            this.arguments  = Map.copyOf(arguments);
+            this.createdAt  = createdAt;
         }
     }
 }

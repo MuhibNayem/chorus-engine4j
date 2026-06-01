@@ -26,8 +26,8 @@ class LastValueChannelTest {
     @Test
     void merge_bothNull_throws() {
         assertThatThrownBy(() -> channel.merge(null, null))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Both current and update are null");
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("both current and update are null");
     }
 
     @Test

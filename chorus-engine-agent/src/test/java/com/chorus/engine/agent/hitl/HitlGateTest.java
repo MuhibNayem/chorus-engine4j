@@ -68,7 +68,10 @@ class HitlGateTest {
 
         assertThat(rejected).isTrue();
         Result<HitlGate.HitlDecision, HitlGate.HitlError> result = awaitFuture(future);
-        assertThat(result.unwrap()).isEqualTo(HitlGate.HitlDecision.REJECT);
+        // gap #6 fix: reject with a reason now returns Err so the reason is propagated
+        assertThat(result.isErr()).isTrue();
+        assertThat(result.unwrapErr().code()).isEqualTo("REJECTED");
+        assertThat(result.unwrapErr().message()).isEqualTo("unsafe operation");
     }
 
     @Test
@@ -86,7 +89,8 @@ class HitlGateTest {
 
         assertThat(approved).isTrue();
         Result<HitlGate.HitlDecision, HitlGate.HitlError> result = awaitFuture(future);
-        assertThat(result.unwrap()).isEqualTo(HitlGate.HitlDecision.APPROVE);
+        // gap #5 fix: approveSession now correctly resolves with APPROVE_SESSION
+        assertThat(result.unwrap()).isEqualTo(HitlGate.HitlDecision.APPROVE_SESSION);
 
         // Second request for same tool should be auto-approved
         Result<HitlGate.HitlDecision, HitlGate.HitlError> second =

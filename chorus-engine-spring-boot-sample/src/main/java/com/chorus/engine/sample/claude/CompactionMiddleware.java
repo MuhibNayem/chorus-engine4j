@@ -7,16 +7,17 @@ import com.chorus.engine.core.result.Result;
 import com.chorus.engine.memory.ContextCompactor;
 
 import java.util.List;
-import java.util.Map;
 
 final class CompactionMiddleware implements Middleware {
 
     private final ContextCompactor compactor;
+    private final int targetTokens;
     private boolean autoCompact = true;
     private int lastTokenCount = 0;
 
     CompactionMiddleware(int targetTokens) {
         this.compactor = new ContextCompactor(targetTokens);
+        this.targetTokens = targetTokens;
     }
 
     @Override public int priority() { return 50; }
@@ -29,9 +30,8 @@ final class CompactionMiddleware implements Middleware {
 
         int estimated = estimateTokens(history);
         lastTokenCount = estimated;
-        int target = extractTarget(compactor);
 
-        if (estimated > target * 2) {
+        if (estimated > targetTokens * 2) {
             var result = compactor.summarize(history, messages -> {
                 StringBuilder sb = new StringBuilder("[Conversation summary: ");
                 for (Message m : messages) {
@@ -42,8 +42,8 @@ final class CompactionMiddleware implements Middleware {
                         case SYSTEM -> "";
                     };
                     String snippet = m.content().length() > 200
-                            ? m.content().substring(0, 200) + "..."
-                            : m.content();
+                        ? m.content().substring(0, 200) + "..."
+                        : m.content();
                     sb.append(prefix).append(snippet).append("\n");
                 }
                 return sb.append("]").toString();
@@ -54,18 +54,8 @@ final class CompactionMiddleware implements Middleware {
     }
 
     void disableAutoCompact() { autoCompact = false; }
-    void enableAutoCompact() { autoCompact = true; }
-    int lastEstimate() { return lastTokenCount; }
-
-    private int extractTarget(ContextCompactor cc) {
-        try {
-            var field = ContextCompactor.class.getDeclaredField("targetTokens");
-            field.setAccessible(true);
-            return field.getInt(cc);
-        } catch (Exception e) {
-            return 4000;
-        }
-    }
+    void enableAutoCompact()  { autoCompact = true; }
+    int  lastEstimate()       { return lastTokenCount; }
 
     private int estimateTokens(List<Message> messages) {
         return messages.stream().mapToInt(m -> (int) Math.ceil(m.content().length() / 3.5)).sum();

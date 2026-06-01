@@ -22,7 +22,6 @@ export OPENAI_API_KEY=sk-...
 | `/api/rag/ingest` | POST | Ingest document |
 | `/api/swarm/run` | POST | Run swarm session |
 | `/api/swarm/handoff` | POST | Dynamic handoff |
-| `/actuator/health` | GET | Spring Boot health |
 
 ## Configuration
 

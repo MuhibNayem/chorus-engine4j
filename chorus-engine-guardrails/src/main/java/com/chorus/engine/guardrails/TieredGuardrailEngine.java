@@ -33,12 +33,30 @@ public final class TieredGuardrailEngine {
         @NonNull Duration tier2Timeout,
         @NonNull Duration tier3Timeout
     ) {
-        this.tier1 = guardrails.stream().filter(g -> g.tier() == 1).toList();
-        this.tier2 = guardrails.stream().filter(g -> g.tier() == 2).toList();
-        this.tier3 = guardrails.stream().filter(g -> g.tier() == 3).toList();
+        this.tier1 = new CopyOnWriteArrayList<>(
+            guardrails.stream().filter(g -> g.tier() == 1).toList());
+        this.tier2 = new CopyOnWriteArrayList<>(
+            guardrails.stream().filter(g -> g.tier() == 2).toList());
+        this.tier3 = new CopyOnWriteArrayList<>(
+            guardrails.stream().filter(g -> g.tier() == 3).toList());
         this.executor = executor;
         this.tier2Timeout = tier2Timeout;
         this.tier3Timeout = tier3Timeout;
+    }
+
+    /**
+     * Register additional guardrails discovered at runtime (e.g., via Spring annotation scanning).
+     * Thread-safe: callers may invoke this concurrently with {@link #evaluateInput}.
+     */
+    public void register(@NonNull List<Guardrail> additional) {
+        for (Guardrail g : additional) {
+            switch (g.tier()) {
+                case 1 -> tier1.add(g);
+                case 2 -> tier2.add(g);
+                case 3 -> tier3.add(g);
+                default -> tier1.add(g);
+            }
+        }
     }
 
     public @NonNull EvaluationResult evaluateInput(@NonNull String input, Guardrail.@NonNull GuardrailContext context) {

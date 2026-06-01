@@ -187,20 +187,24 @@ public final class SpeculativeGraphExecutor<S> {
             NextNodesResult<S> nextResult = computeNextNodesWithSpeculation(
                 nextNodes, currentState, token, eventSink, specCache);
 
-            for (String node : nextNodes) {
+            Set<String> executedNodes = new LinkedHashSet<>(nextNodes);
+            nextNodes = nextResult.nextNodes();
+            sequence++;
+            isResume = false;
+
+            for (String node : executedNodes) {
                 if (interruptAfter.contains(node)) {
-                    checkpointer.save(threadId, sequence, currentState, new ArrayList<>(nextResult.nextNodes()));
+                    checkpointer.save(threadId, sequence, currentState, new ArrayList<>(nextNodes));
                     eventSink.accept(new GraphEvent.CheckpointSaved<>(threadId, sequence, currentState));
                     return;
                 }
             }
 
-            nextNodes = nextResult.nextNodes();
-            sequence++;
-            isResume = false;
-
-            Set<String> consumed = new HashSet<>(sortedNodes);
-            specCache.keySet().removeAll(consumed);
+            // Remove every cache entry not in the incoming next-node set.
+            // Unchosen speculative results are stale — they were computed from the previous
+            // step's state and must not be reused if the same node appears again later.
+            final Set<String> upcomingNodes = nextNodes;
+            specCache.keySet().removeIf(k -> !upcomingNodes.contains(k));
 
             checkpointer.save(threadId, sequence, currentState, new ArrayList<>(nextNodes));
             eventSink.accept(new GraphEvent.CheckpointSaved<>(threadId, sequence, currentState));
@@ -302,6 +306,15 @@ public final class SpeculativeGraphExecutor<S> {
                 }
                 next.add(target);
                 eventSink.accept(new GraphEvent.EdgeTransition<>(node, target));
+            }
+        }
+
+        // Record misses: targets that were speculated in the previous step but were NOT in
+        // this step's actual next-node set. Without this the hitRate numerator never shrinks,
+        // permanently biasing the adaptive gate toward speculating everything.
+        for (String cached : specCache.keySet()) {
+            if (!next.contains(cached)) {
+                stats.recordMiss();
             }
         }
 

@@ -171,8 +171,30 @@ final class ModuleIntegrations implements AutoCloseable {
     }
 
     List<VectorStore.RetrievalResult> ragSearch(String query, int topK) {
-        float[] embedding = new float[1536];
-        return vectorStore.search(embedding, topK, Map.of());
+        return vectorStore.search(hashEmbed(query), topK, Map.of());
+    }
+
+    private static float[] hashEmbed(String text) {
+        final int DIM = 1536;
+        float[] v = new float[DIM];
+        String[] tokens = text.toLowerCase().split("\\s+");
+        for (String token : tokens) {
+            if (token.isEmpty()) continue;
+            int h = (token.hashCode() & Integer.MAX_VALUE) % DIM;
+            v[h] += 1.0f;
+            // bigram: hash consecutive token pair for locality
+            for (char c : token.toCharArray()) {
+                int ch = (((token.hashCode() * 31) + c) & Integer.MAX_VALUE) % DIM;
+                v[ch] += 0.5f;
+            }
+        }
+        double norm = 0;
+        for (float f : v) norm += (double) f * f;
+        if (norm > 0) {
+            float inv = (float) (1.0 / Math.sqrt(norm));
+            for (int i = 0; i < DIM; i++) v[i] *= inv;
+        }
+        return v;
     }
 
     void loadSkills(Path skillsDir) {
