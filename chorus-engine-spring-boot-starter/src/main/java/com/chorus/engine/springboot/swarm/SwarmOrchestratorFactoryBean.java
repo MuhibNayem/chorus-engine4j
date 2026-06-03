@@ -68,7 +68,15 @@ public final class SwarmOrchestratorFactoryBean implements FactoryBean<SwarmOrch
             throw new IllegalStateException("BeanFactory has not been set");
         }
 
-        if (agents.isEmpty()) {
+        // Discover agents registered as individual Spring beans by SwarmAnnotationProcessor.
+        // The directly-added agents (via addAgent/setAgents) are included as a fallback for
+        // programmatic usage outside of the annotation-driven path.
+        List<AgentMetadata> resolvedAgents = new ArrayList<>(agents);
+        if (beanFactory instanceof org.springframework.beans.factory.config.ConfigurableListableBeanFactory clbf) {
+            clbf.getBeansOfType(AgentMetadata.class).values().forEach(resolvedAgents::add);
+        }
+
+        if (resolvedAgents.isEmpty()) {
             throw new IllegalStateException("No swarm agents configured");
         }
 
@@ -77,16 +85,16 @@ public final class SwarmOrchestratorFactoryBean implements FactoryBean<SwarmOrch
         SwarmConfig swarmConfig = beanFactory.getBean("swarmConfig", SwarmConfig.class);
         ExecutorService executor = beanFactory.getBean("chorusExecutor", ExecutorService.class);
 
-        Map<String, AgentDefinition> agentMap = buildAgentDefinitions(toolRegistry);
+        Map<String, AgentDefinition> agentMap = buildAgentDefinitions(resolvedAgents, toolRegistry);
         String type = resolveOrchestratorType();
 
         return switch (type) {
             case "supervisor" -> {
-                String supervisor = agents.getFirst().name();
+                String supervisor = resolvedAgents.getFirst().name();
                 yield new SupervisorOrchestrator(agentMap, supervisor, llmClient, toolRegistry, swarmConfig, executor);
             }
             case "planner-executor" -> {
-                String planner = agents.getFirst().name();
+                String planner = resolvedAgents.getFirst().name();
                 yield new PlannerExecutorOrchestrator(agentMap, planner, llmClient, toolRegistry, swarmConfig, executor);
             }
             default -> new HandoffOrchestrator(agentMap, llmClient, toolRegistry, swarmConfig, executor);
@@ -107,9 +115,11 @@ public final class SwarmOrchestratorFactoryBean implements FactoryBean<SwarmOrch
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    private @NonNull Map<String, AgentDefinition> buildAgentDefinitions(@NonNull ToolRegistry toolRegistry) {
+    private @NonNull Map<String, AgentDefinition> buildAgentDefinitions(
+        @NonNull List<AgentMetadata> resolvedAgents, @NonNull ToolRegistry toolRegistry
+    ) {
         Map<String, AgentDefinition> map = new LinkedHashMap<>();
-        for (AgentMetadata meta : agents) {
+        for (AgentMetadata meta : resolvedAgents) {
             List<Tool> tools = resolveTools(meta.toolNames(), toolRegistry);
             String model = resolveModel(meta.model());
             double temperature = resolveTemperature(meta.temperature());
@@ -216,17 +226,4 @@ public final class SwarmOrchestratorFactoryBean implements FactoryBean<SwarmOrch
         return null;
     }
 
-    // -------------------------------------------------------------------------
-    // Agent metadata record
-    // -------------------------------------------------------------------------
-
-    public record AgentMetadata(
-        @NonNull String name,
-        @NonNull String instructions,
-        @NonNull String model,
-        double temperature,
-        @NonNull List<String> handoffTargets,
-        @NonNull List<String> toolNames,
-        @NonNull String beanName
-    ) {}
 }

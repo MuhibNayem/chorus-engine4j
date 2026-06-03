@@ -34,7 +34,7 @@ public class SwarmAnnotationProcessor implements BeanDefinitionRegistryPostProce
             return;
         }
 
-        List<SwarmOrchestratorFactoryBean.AgentMetadata> agentMetadata = new java.util.ArrayList<>();
+        List<AgentMetadata> agentMetadata = new java.util.ArrayList<>();
 
         for (String beanName : beanFactory.getBeanDefinitionNames()) {
             BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
@@ -47,7 +47,7 @@ public class SwarmAnnotationProcessor implements BeanDefinitionRegistryPostProce
             List<String> handoffTargets = Arrays.asList(ann.handoffTargets());
             List<String> toolNames = Arrays.asList(ann.toolNames());
 
-            agentMetadata.add(new SwarmOrchestratorFactoryBean.AgentMetadata(
+            agentMetadata.add(new AgentMetadata(
                 ann.name(),
                 ann.instructions(),
                 ann.model(),
@@ -62,17 +62,37 @@ public class SwarmAnnotationProcessor implements BeanDefinitionRegistryPostProce
             return;
         }
 
+        // Register each agent as an individual Spring bean using only AOT-serializable
+        // constructor arg types (String, double, List<String>).
+        // Using .addPropertyValue("agents", list) on the factory bean's BeanDefinition
+        // causes processAot to fail — Spring's ValueCodeGenerator cannot serialize
+        // List<AgentMetadata> because AgentMetadata is a custom type.
+        for (AgentMetadata meta : agentMetadata) {
+            String metaBeanName = "swarmAgentMeta." + meta.name();
+            BeanDefinitionBuilder metaBuilder = BeanDefinitionBuilder
+                .genericBeanDefinition(AgentMetadata.class)
+                .addConstructorArgValue(meta.name())
+                .addConstructorArgValue(meta.instructions())
+                .addConstructorArgValue(meta.model())
+                .addConstructorArgValue(meta.temperature())
+                .addConstructorArgValue(meta.handoffTargets())
+                .addConstructorArgValue(meta.toolNames())
+                .addConstructorArgValue(meta.beanName());
+            if (registry.containsBeanDefinition(metaBeanName)) {
+                registry.removeBeanDefinition(metaBeanName);
+            }
+            registry.registerBeanDefinition(metaBeanName, metaBuilder.getBeanDefinition());
+        }
+
+        // Factory bean carries no property values — it discovers agents at getObject()
+        // time via BeanFactory.getBeansOfType(AgentMetadata.class).
         BeanDefinitionBuilder factoryBuilder = BeanDefinitionBuilder
-            .rootBeanDefinition(SwarmOrchestratorFactoryBean.class)
-            .addPropertyValue("agents", agentMetadata);
+            .rootBeanDefinition(SwarmOrchestratorFactoryBean.class);
 
         String orchestratorBeanName = "swarmOrchestrator";
-
-        // Idempotency: override any existing default orchestrator
         if (registry.containsBeanDefinition(orchestratorBeanName)) {
             registry.removeBeanDefinition(orchestratorBeanName);
         }
-
         registry.registerBeanDefinition(orchestratorBeanName, factoryBuilder.getBeanDefinition());
     }
 
