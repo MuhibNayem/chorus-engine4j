@@ -2,9 +2,10 @@ spring:
   application:
     name: chorus-engine-sample
   main:
-    # CLI mode by default — no embedded HTTP server.
-    # Start with --spring.profiles.active=web to enable the embedded server.
-    web-application-type: none
+    # Default to servlet so GraalVM native-image AOT includes Tomcat classes
+    # on the classpath. The dev/CLI profile overrides this to "none" below.
+    # The web profile inherits "servlet" and starts the embedded server.
+    web-application-type: servlet
 
 chorus:
   enabled: true
@@ -240,6 +241,11 @@ spring:
     activate:
       on-profile: dev
 
+spring:
+  main:
+    # CLI mode — no embedded HTTP server.
+    web-application-type: none
+
 chorus:
   llm:
     provider: mock
@@ -271,8 +277,6 @@ spring:
   config:
     activate:
       on-profile: web
-  main:
-    web-application-type: servlet
 
 server:
   port: 8080
