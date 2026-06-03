@@ -78,6 +78,9 @@ public class AgentAnnotationAotProcessor implements BeanFactoryInitializationAot
 
             RuntimeHints hints = generationContext.getRuntimeHints();
 
+            hints.reflection().registerType(AgentLoopFactoryBean.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
+            hints.reflection().registerType(com.chorus.engine.springboot.tool.AnnotatedMethodTool.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
+
             for (String beanName : beanFactory.getBeanDefinitionNames()) {
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
                 Class<?> beanClass = resolveBeanClass(bd, beanFactory);

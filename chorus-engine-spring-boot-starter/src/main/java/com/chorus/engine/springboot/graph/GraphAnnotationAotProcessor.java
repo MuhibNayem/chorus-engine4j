@@ -44,6 +44,7 @@ public class GraphAnnotationAotProcessor implements BeanFactoryInitializationAot
         @Override
         public void applyTo(org.springframework.aot.generate.GenerationContext ctx, BeanFactoryInitializationCode code) {
             RuntimeHints hints = ctx.getRuntimeHints();
+            hints.reflection().registerType(GraphWorkflowFactoryBean.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
             for (String beanName : beanFactory.getBeanDefinitionNames()) {
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
                 Class<?> beanClass = resolveBeanClass(bd, beanFactory);
