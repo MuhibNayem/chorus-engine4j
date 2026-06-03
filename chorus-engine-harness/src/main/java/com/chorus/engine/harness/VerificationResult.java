@@ -10,4 +10,10 @@ import java.util.List;
 public record VerificationResult(
     boolean ok,
     @NonNull List<String> findings
-) {}
+) {
+    public @NonNull String summary() {
+        return ok
+            ? "PASS: " + String.join(", ", findings)
+            : "FAIL: " + String.join(", ", findings);
+    }
+}

@@ -28,6 +28,16 @@ tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
     mainClass.set("com.chorus.engine.sample.SampleApplication")
 }
 
+// Lock native image AOT to NONE web type.
+// Spring AOT evaluates @ConditionalOnWebApplication once at compile time — it cannot be
+// re-evaluated at runtime when switching via --spring.profiles.active. Compiling with
+// web-application-type=none excludes Servlet/MVC beans (resourceHandlerMapping, etc.)
+// from the native image, preventing "No ServletContext set" crashes in CLI mode.
+// Web mode is supported at runtime via JVM deployment (bootRun / bootJar), not native.
+tasks.named<JavaExec>("processAot") {
+    systemProperty("spring.main.web-application-type", "none")
+}
+
 tasks.named("processTestAot") { enabled = false }
 
 dependencies {

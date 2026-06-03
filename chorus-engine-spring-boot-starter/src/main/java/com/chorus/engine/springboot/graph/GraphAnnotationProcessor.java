@@ -8,6 +8,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.config.TypedStringValue;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
@@ -51,9 +52,15 @@ public class GraphAnnotationProcessor
             String compiledGraphBeanName = beanName + "_compiledGraph";
             if (registry.containsBeanDefinition(compiledGraphBeanName)) continue;
 
+            // Use TypedStringValue for workflowClass so Spring AOT generates:
+            //   new TypedStringValue("com.example.MyBean", Class.class)
+            // instead of a direct Class literal (MyBean.class). A direct literal requires
+            // importing the class in the generated __BeanDefinitions file — which fails at
+            // compileAotJava when the workflow class is package-private and the generated
+            // file lives in a different package (com.chorus.engine.graph.state).
             BeanDefinitionBuilder builder = BeanDefinitionBuilder.rootBeanDefinition(GraphWorkflowFactoryBean.class)
                 .addPropertyValue("workflowBeanName", beanName)
-                .addPropertyValue("workflowClassName", beanClass.getName())
+                .addPropertyValue("workflowClass", new TypedStringValue(beanClass.getName(), Class.class))
                 .addPropertyValue("entryPoint", wf.entryPoint())
                 .addPropertyValue("finishPoints", wf.finishPoints());
 

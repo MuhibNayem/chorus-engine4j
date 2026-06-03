@@ -16,13 +16,28 @@ import java.util.*;
 public class GraphWorkflowFactoryBean implements FactoryBean<CompiledGraph<Map<String, Object>>>, ApplicationContextAware {
 
     private String workflowBeanName;
-    private String workflowClassName;
+    private Class<?> workflowClass;
     private String entryPoint;
     private String[] finishPoints;
     private ApplicationContext applicationContext;
 
     public void setWorkflowBeanName(String workflowBeanName) { this.workflowBeanName = workflowBeanName; }
-    public void setWorkflowClassName(String workflowClassName) { this.workflowClassName = workflowClassName; }
+    /**
+     * Receives the workflow class injected by Spring's type converter from the
+     * {@link org.springframework.beans.factory.config.TypedStringValue} registered by
+     * {@link GraphAnnotationProcessor}. Using TypedStringValue avoids a direct Class literal
+     * in AOT-generated code, which would fail compileAotJava for package-private classes.
+     */
+    public void setWorkflowClass(Class<?> workflowClass) { this.workflowClass = workflowClass; }
+    /** Backward-compatibility setter for String class name (older configurations). */
+    public void setWorkflowClassName(String workflowClassName) {
+        try {
+            this.workflowClass = Class.forName(workflowClassName, true,
+                Thread.currentThread().getContextClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Cannot load workflow class: " + workflowClassName, e);
+        }
+    }
     public void setEntryPoint(String entryPoint) { this.entryPoint = entryPoint; }
     public void setFinishPoints(String[] finishPoints) { this.finishPoints = finishPoints; }
 
@@ -34,7 +49,9 @@ public class GraphWorkflowFactoryBean implements FactoryBean<CompiledGraph<Map<S
     @Override
     @SuppressWarnings("unchecked")
     public CompiledGraph<Map<String, Object>> getObject() throws Exception {
-        Class<?> workflowClass = Class.forName(workflowClassName, true, applicationContext.getClassLoader());
+        if (workflowClass == null) {
+            throw new IllegalStateException("workflowClass has not been set on GraphWorkflowFactoryBean");
+        }
         StateGraph<Map<String, Object>> stateGraph = new StateGraph<>(
             (current, update) -> {
                 Map<String, Object> result = new LinkedHashMap<>(current);

@@ -97,46 +97,11 @@ jobs:
             echo "::warning::Startup+run time (${ELAPSED_MS}ms) exceeds the 500ms CI threshold (target is <100ms on bare metal)"
           fi
 
-      - name: Verify Native Executable — web mode (Spring Boot actuator health)
-        run: |
-          # Start the binary in web mode: embedded Tomcat starts, SpringCliRunner skips the
-          # CLI loop, and actuator/health becomes available. This validates that the Spring
-          # Boot context wires up correctly in the native image.
-          BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-code"
-          PORT=18080
-          START_NS=$(date +%s%N)
-          "$BINARY" --spring.profiles.active=web --server.port=$PORT > /tmp/chorus-sample.log 2>&1 &
-          PID=$!
-
-          READY=false
-          for i in $(seq 1 80); do
-            if curl -sf "http://localhost:${PORT}/actuator/health" > /dev/null 2>&1; then
-              READY=true
-              break
-            fi
-            if ! kill -0 $PID 2>/dev/null; then
-              echo "ERROR: Native process exited prematurely"
-              cat /tmp/chorus-sample.log
-              exit 1
-            fi
-            sleep 0.25
-          done
-
-          END_NS=$(date +%s%N)
-          ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
-          kill $PID 2>/dev/null || true
-          wait $PID 2>/dev/null || true
-
-          if [ "$READY" = "false" ]; then
-            echo "ERROR: /actuator/health did not respond within 20 seconds"
-            cat /tmp/chorus-sample.log
-            exit 1
-          fi
-
-          echo "✅ Web mode: Spring Boot started and served /actuator/health in ${ELAPSED_MS}ms"
-          if [ "$ELAPSED_MS" -gt 500 ]; then
-            echo "::warning::Startup time (${ELAPSED_MS}ms) exceeds the 500ms CI threshold (target is <100ms on bare metal)"
-          fi
+      # NOTE: Web mode (--spring.profiles.active=web) is validated via JVM deployment only.
+      # GraalVM native images evaluate @ConditionalOnWebApplication at AOT compile time — the
+      # condition cannot be re-evaluated at runtime when switching application type. The native
+      # binary is locked to WebApplicationType.NONE (CLI) by processAot's system property.
+      # Web deployment uses: java -jar chorus-code.jar --spring.profiles.active=web
 
       - name: Upload Verified Native Binary
         uses: actions/upload-artifact@v4
