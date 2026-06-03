@@ -62,11 +62,10 @@ public class SwarmAnnotationProcessor implements BeanDefinitionRegistryPostProce
             return;
         }
 
-        // Register each agent as an individual Spring bean using only AOT-serializable
-        // constructor arg types (String, double, List<String>).
-        // Using .addPropertyValue("agents", list) on the factory bean's BeanDefinition
-        // causes processAot to fail — Spring's ValueCodeGenerator cannot serialize
-        // List<AgentMetadata> because AgentMetadata is a custom type.
+        // Register each AgentMetadata as an individual Spring bean with constructor args.
+        // All arg types (String, double, List<String>) are natively serializable by Spring AOT's
+        // ValueCodeGenerator — unlike List<AgentMetadata> which is an unsupported custom type.
+        List<String> registeredBeanNames = new java.util.ArrayList<>();
         for (AgentMetadata meta : agentMetadata) {
             String metaBeanName = "swarmAgentMeta." + meta.name();
             BeanDefinitionBuilder metaBuilder = BeanDefinitionBuilder
@@ -82,12 +81,15 @@ public class SwarmAnnotationProcessor implements BeanDefinitionRegistryPostProce
                 registry.removeBeanDefinition(metaBeanName);
             }
             registry.registerBeanDefinition(metaBeanName, metaBuilder.getBeanDefinition());
+            registeredBeanNames.add(metaBeanName);
         }
 
-        // Factory bean carries no property values — it discovers agents at getObject()
-        // time via BeanFactory.getBeansOfType(AgentMetadata.class).
+        // Store the agent bean names (List<String>) as the property value on the factory bean.
+        // List<String> is AOT-serializable; the factory bean resolves agents at getObject()
+        // time via direct O(1) getBean(name) lookups — no full-registry scan.
         BeanDefinitionBuilder factoryBuilder = BeanDefinitionBuilder
-            .rootBeanDefinition(SwarmOrchestratorFactoryBean.class);
+            .rootBeanDefinition(SwarmOrchestratorFactoryBean.class)
+            .addPropertyValue("agentBeanNames", registeredBeanNames);
 
         String orchestratorBeanName = "swarmOrchestrator";
         if (registry.containsBeanDefinition(orchestratorBeanName)) {

@@ -46,15 +46,27 @@ import java.util.concurrent.ExecutorService;
 public final class SwarmOrchestratorFactoryBean implements FactoryBean<SwarmOrchestrator>, BeanFactoryAware {
 
     private @Nullable BeanFactory beanFactory;
-    private final @NonNull List<AgentMetadata> agents = new ArrayList<>();
+    // Bean names of AgentMetadata singletons registered by SwarmAnnotationProcessor.
+    // Stored as List<String> so Spring AOT can serialize this property value natively.
+    private @NonNull List<String> agentBeanNames = new ArrayList<>();
+    // Direct API: agents added programmatically (not via @SwarmAgent). Kept separate to
+    // prevent duplicates when both annotation and programmatic registration are used.
+    private final @NonNull List<AgentMetadata> directAgents = new ArrayList<>();
 
-    public void addAgent(@NonNull AgentMetadata metadata) {
-        this.agents.add(metadata);
+    /** Used by SwarmAnnotationProcessor to wire the registered agent bean names. */
+    public void setAgentBeanNames(@NonNull List<String> names) {
+        this.agentBeanNames = new ArrayList<>(names);
     }
 
+    /** Programmatic API: add an agent that is not registered via @SwarmAgent. */
+    public void addAgent(@NonNull AgentMetadata metadata) {
+        this.directAgents.add(metadata);
+    }
+
+    /** Programmatic API: replace all directly-added agents. */
     public void setAgents(@NonNull List<AgentMetadata> agents) {
-        this.agents.clear();
-        this.agents.addAll(agents);
+        this.directAgents.clear();
+        this.directAgents.addAll(agents);
     }
 
     @Override
@@ -68,12 +80,11 @@ public final class SwarmOrchestratorFactoryBean implements FactoryBean<SwarmOrch
             throw new IllegalStateException("BeanFactory has not been set");
         }
 
-        // Discover agents registered as individual Spring beans by SwarmAnnotationProcessor.
-        // The directly-added agents (via addAgent/setAgents) are included as a fallback for
-        // programmatic usage outside of the annotation-driven path.
-        List<AgentMetadata> resolvedAgents = new ArrayList<>(agents);
-        if (beanFactory instanceof org.springframework.beans.factory.config.ConfigurableListableBeanFactory clbf) {
-            clbf.getBeansOfType(AgentMetadata.class).values().forEach(resolvedAgents::add);
+        // Resolve annotation-driven agents via targeted O(1) bean lookups by name.
+        // Avoids getBeansOfType() which scans the entire bean registry — O(total_beans).
+        List<AgentMetadata> resolvedAgents = new ArrayList<>(directAgents);
+        for (String beanName : agentBeanNames) {
+            resolvedAgents.add(beanFactory.getBean(beanName, AgentMetadata.class));
         }
 
         if (resolvedAgents.isEmpty()) {
