@@ -53,7 +53,7 @@ public class GraphAnnotationProcessor
 
             BeanDefinitionBuilder builder = BeanDefinitionBuilder.rootBeanDefinition(GraphWorkflowFactoryBean.class)
                 .addPropertyValue("workflowBeanName", beanName)
-                .addPropertyValue("workflowClass", beanClass)
+                .addPropertyValue("workflowClassName", beanClass.getName())
                 .addPropertyValue("entryPoint", wf.entryPoint())
                 .addPropertyValue("finishPoints", wf.finishPoints());
 

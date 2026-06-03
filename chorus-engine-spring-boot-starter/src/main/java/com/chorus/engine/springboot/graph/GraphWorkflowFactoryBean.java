@@ -16,13 +16,13 @@ import java.util.*;
 public class GraphWorkflowFactoryBean implements FactoryBean<CompiledGraph<Map<String, Object>>>, ApplicationContextAware {
 
     private String workflowBeanName;
-    private Class<?> workflowClass;
+    private String workflowClassName;
     private String entryPoint;
     private String[] finishPoints;
     private ApplicationContext applicationContext;
 
     public void setWorkflowBeanName(String workflowBeanName) { this.workflowBeanName = workflowBeanName; }
-    public void setWorkflowClass(Class<?> workflowClass) { this.workflowClass = workflowClass; }
+    public void setWorkflowClassName(String workflowClassName) { this.workflowClassName = workflowClassName; }
     public void setEntryPoint(String entryPoint) { this.entryPoint = entryPoint; }
     public void setFinishPoints(String[] finishPoints) { this.finishPoints = finishPoints; }
 
@@ -34,6 +34,7 @@ public class GraphWorkflowFactoryBean implements FactoryBean<CompiledGraph<Map<S
     @Override
     @SuppressWarnings("unchecked")
     public CompiledGraph<Map<String, Object>> getObject() throws Exception {
+        Class<?> workflowClass = Class.forName(workflowClassName, true, applicationContext.getClassLoader());
         StateGraph<Map<String, Object>> stateGraph = new StateGraph<>(
             (current, update) -> {
                 Map<String, Object> result = new LinkedHashMap<>(current);
