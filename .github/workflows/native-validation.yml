@@ -49,15 +49,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-native-
 
+      - name: Run Spring Boot AOT Processing
+        run: ./gradlew :chorus-engine-spring-boot-sample:processAot --no-daemon
+
       - name: Compile Native Binary
         run: ./gradlew :chorus-engine-spring-boot-sample:nativeCompile --no-daemon
 
-      - name: Verify Native Executable & Startup Time
+      - name: Verify Native Executable — CLI pipeline (mock LLM, end-to-end)
         run: |
-          # chorus-code is a run-to-completion CLI (not a web server), so we
-          # validate it by invoking it non-interactively and asserting it exits 0
-          # with the expected output. CHORUS_PROVIDER=mock makes the LLM response
-          # deterministic so the assertion does not depend on any API keys.
+          # chorus-code is a run-to-completion CLI when started without --spring.profiles.active=web.
+          # Run it non-interactively with CHORUS_PROVIDER=mock so the full LLM/agent pipeline
+          # exercises in the native image without requiring any API keys.
+          # --spring.profiles.active=dev also sets the Spring-managed LLM to mock.
           BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-code"
           if [ ! -f "$BINARY" ]; then
             echo "ERROR: Native binary not found at $BINARY"
@@ -67,7 +70,7 @@ jobs:
 
           START_NS=$(date +%s%N)
           set +e
-          OUTPUT=$(CHORUS_PROVIDER=mock "$BINARY" -p "hello" --output-format text </dev/null 2>&1)
+          OUTPUT=$(CHORUS_PROVIDER=mock "$BINARY" --spring.profiles.active=dev -p "hello" --output-format text </dev/null 2>&1)
           EXIT_CODE=$?
           set -e
           END_NS=$(date +%s%N)
@@ -82,16 +85,57 @@ jobs:
             exit 1
           fi
 
-          # The mock provider replies with a known marker; its presence proves the
-          # full LLM/agent pipeline ran end-to-end in the native image.
+          # The mock provider replies with a known marker — its presence proves the
+          # full LLM/agent pipeline ran end-to-end inside the native image.
           if ! echo "$OUTPUT" | grep -qi "Ready to help"; then
             echo "ERROR: expected mock response marker ('Ready to help') not found in output"
             exit 1
           fi
 
-          echo "✅ Native CLI ran successfully in ${ELAPSED_MS}ms (exit 0)"
+          echo "✅ CLI mode: native pipeline ran successfully in ${ELAPSED_MS}ms (exit 0)"
           if [ "$ELAPSED_MS" -gt 500 ]; then
-            echo "::warning::Startup+run time (${ELAPSED_MS}ms) exceeds the 500ms CI threshold (Target is <100ms on bare metal)"
+            echo "::warning::Startup+run time (${ELAPSED_MS}ms) exceeds the 500ms CI threshold (target is <100ms on bare metal)"
+          fi
+
+      - name: Verify Native Executable — web mode (Spring Boot actuator health)
+        run: |
+          # Start the binary in web mode: embedded Tomcat starts, SpringCliRunner skips the
+          # CLI loop, and actuator/health becomes available. This validates that the Spring
+          # Boot context wires up correctly in the native image.
+          BINARY="chorus-engine-spring-boot-sample/build/native/nativeCompile/chorus-code"
+          PORT=18080
+          START_NS=$(date +%s%N)
+          "$BINARY" --spring.profiles.active=web --server.port=$PORT > /tmp/chorus-sample.log 2>&1 &
+          PID=$!
+
+          READY=false
+          for i in $(seq 1 80); do
+            if curl -sf "http://localhost:${PORT}/actuator/health" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            if ! kill -0 $PID 2>/dev/null; then
+              echo "ERROR: Native process exited prematurely"
+              cat /tmp/chorus-sample.log
+              exit 1
+            fi
+            sleep 0.25
+          done
+
+          END_NS=$(date +%s%N)
+          ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
+          kill $PID 2>/dev/null || true
+          wait $PID 2>/dev/null || true
+
+          if [ "$READY" = "false" ]; then
+            echo "ERROR: /actuator/health did not respond within 20 seconds"
+            cat /tmp/chorus-sample.log
+            exit 1
+          fi
+
+          echo "✅ Web mode: Spring Boot started and served /actuator/health in ${ELAPSED_MS}ms"
+          if [ "$ELAPSED_MS" -gt 500 ]; then
+            echo "::warning::Startup time (${ELAPSED_MS}ms) exceeds the 500ms CI threshold (target is <100ms on bare metal)"
           fi
 
       - name: Upload Verified Native Binary

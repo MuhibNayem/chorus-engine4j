@@ -1,6 +1,10 @@
 spring:
   application:
     name: chorus-engine-sample
+  main:
+    # CLI mode by default — no embedded HTTP server.
+    # Start with --spring.profiles.active=web to enable the embedded server.
+    web-application-type: none
 
 chorus:
   enabled: true
@@ -256,3 +260,33 @@ chorus:
     checkpoint-type: memory
 
   # Visualizer is auto-enabled on dev/default profiles at /chorus/visualizer
+
+---
+# ╔══════════════════════════════════════════════════════════════════════╗
+# ║  WEB PROFILE  — embedded HTTP server, actuator + REST API            ║
+# ║  Activate with: --spring.profiles.active=web                        ║
+# ║  Used by CI native validation and API-first deployments              ║
+# ╚══════════════════════════════════════════════════════════════════════╝
+spring:
+  config:
+    activate:
+      on-profile: web
+  main:
+    web-application-type: servlet
+
+server:
+  port: 8080
+
+chorus:
+  llm:
+    provider: mock
+    model: mock-1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

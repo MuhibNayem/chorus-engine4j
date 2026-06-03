@@ -280,6 +280,18 @@ public final class SemanticTaskRouter {
                 "Generate documentation for the whole project",
                 "Perform a comprehensive performance review"
             )),
+            new RouteCategory(TaskKind.ANSWER_ONLY, ExecutionLane.CHEAP_TRIAGE,
+                TaskPath.CACHE_AMPLIFIED_PATH, "cache_amplified", List.of(
+                "What was that result again?",
+                "Can you remind me what we decided?",
+                "What's the status of that task?",
+                "Any progress on the build?",
+                "Update on that issue?",
+                "You just showed me that, can you show me again?",
+                "What did we just do?",
+                "Repeat the last thing you said",
+                "Show me the output again"
+            )),
             new RouteCategory(TaskKind.INSPECT_ONLY, ExecutionLane.CHEAP_TRIAGE,
                 TaskPath.DIRECT_AGENT_PATH, "inspect_only", List.of(
                 "Show me the contents of app.ts",

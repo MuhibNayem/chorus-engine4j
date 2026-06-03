@@ -1,6 +1,9 @@
 package com.chorus.engine.harness;
 
+import com.chorus.engine.guardrails.GuardrailResult;
+import com.chorus.engine.guardrails.TieredGuardrailEngine;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +15,8 @@ import java.util.regex.Pattern;
  * Checks for boundary violations, suspicious patterns, and policy compliance.
  *
  * <p>Integrates with the guardrails module — safety checks are run before
- * and after each execution stage.
+ * and after each execution stage. When a {@link TieredGuardrailEngine} is
+ * provided, it adds defense-in-depth via 3-tier guardrail evaluation.
  */
 public final class SafetyAuditor {
 
@@ -26,6 +30,16 @@ public final class SafetyAuditor {
 
     private static final int MAX_RESPONSE_LENGTH = 500_000;
     private static final int MAX_TOOL_CALLS = 100;
+
+    private final @Nullable TieredGuardrailEngine guardrailEngine;
+
+    public SafetyAuditor() {
+        this(null);
+    }
+
+    public SafetyAuditor(@Nullable TieredGuardrailEngine guardrailEngine) {
+        this.guardrailEngine = guardrailEngine;
+    }
 
     public record SafetyCheck(@NonNull String id, boolean passed, @NonNull String message) {}
 
@@ -44,6 +58,19 @@ public final class SafetyAuditor {
         checks.add(checkInputLength(userInput));
         checks.add(checkSensitivePaths(userInput));
         checks.add(checkTaskComplexity(task));
+
+        if (guardrailEngine != null) {
+            var guardrailCtx = new com.chorus.engine.guardrails.Guardrail.GuardrailContext(
+                task.taskId(), task.owner().name(), "input");
+            var result = guardrailEngine.evaluateInput(userInput, guardrailCtx);
+            for (var detail : result.details()) {
+                checks.add(new SafetyCheck("guardrail-" + detail.guardrailName(),
+                    detail.allowed(),
+                    detail.allowed() ? "Guardrail passed: " + detail.guardrailName()
+                        : "Guardrail " + detail.action() + ": " + detail.guardrailName()
+                            + (detail.matchedContent() != null ? " — " + detail.matchedContent() : "")));
+            }
+        }
 
         boolean safe = checks.stream().allMatch(SafetyCheck::passed);
         return new SafetyReport(task.taskId(), safe, List.copyOf(checks));
@@ -64,6 +91,19 @@ public final class SafetyAuditor {
         checks.add(checkToolCallLimit(toolCallsObserved));
         checks.add(checkWorkerFailures(workerResults));
         checks.add(checkSensitivePaths(responseText));
+
+        if (guardrailEngine != null) {
+            var guardrailCtx = new com.chorus.engine.guardrails.Guardrail.GuardrailContext(
+                task.taskId(), task.owner().name(), "output");
+            var result = guardrailEngine.evaluateOutput(responseText, guardrailCtx);
+            for (var detail : result.details()) {
+                checks.add(new SafetyCheck("guardrail-" + detail.guardrailName(),
+                    detail.allowed(),
+                    detail.allowed() ? "Guardrail passed: " + detail.guardrailName()
+                        : "Guardrail " + detail.action() + ": " + detail.guardrailName()
+                            + (detail.matchedContent() != null ? " — " + detail.matchedContent() : "")));
+            }
+        }
 
         boolean safe = checks.stream().allMatch(SafetyCheck::passed);
         return new SafetyReport(task.taskId(), safe, List.copyOf(checks));

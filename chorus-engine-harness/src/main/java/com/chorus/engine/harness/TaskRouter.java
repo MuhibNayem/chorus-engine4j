@@ -29,6 +29,15 @@ public final class TaskRouter {
     private static final Pattern INSPECT_PATTERN = Pattern.compile(
         "\\b(show|list|read|display|contents of|where is|what does)\\b",
         Pattern.CASE_INSENSITIVE);
+    // Matches unambiguous "recall a previous result" queries only.
+    // Excluded intentionally: "again", "recently", "status of", "update on", "just did", "you just"
+    // — those words appear in action queries ("fix X again", "update on the Y bug") and would
+    // silently return a stale cached result instead of executing the real task.
+    private static final Pattern CACHE_PATTERN = Pattern.compile(
+        "\\b(remind me what|can you remind me|what was that result|show me that again|"
+        + "repeat the last|what did we just|what was the (last|previous) result|"
+        + "show me the output again|what did you just say)\\b",
+        Pattern.CASE_INSENSITIVE);
     private static final Pattern PROJECT_PHASE_PATTERN = Pattern.compile(
         "\\b(audit|analyze entire|full test suite|index all|batch|generate docs|comprehensive|performance review)\\b",
         Pattern.CASE_INSENSITIVE);
@@ -39,6 +48,10 @@ public final class TaskRouter {
     public @NonNull TaskRoute route(@NonNull String text, @NonNull String expandedText) {
         String combined = (text + " " + expandedText).toLowerCase(Locale.ROOT);
 
+        if (CACHE_PATTERN.matcher(combined).find()) {
+            return new TaskRoute(TaskKind.ANSWER_ONLY, ExecutionLane.CHEAP_TRIAGE,
+                TaskPath.CACHE_AMPLIFIED_PATH, false, false, true);
+        }
         if (PROJECT_PHASE_PATTERN.matcher(combined).find()) {
             return new TaskRoute(TaskKind.PROJECT_PHASE, ExecutionLane.BACKGROUND_ASYNC,
                 TaskPath.BACKGROUND_OR_BATCH_PATH, false, false, false);

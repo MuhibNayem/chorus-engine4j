@@ -18,14 +18,16 @@ tasks.withType<JavaCompile> {
 }
 
 application {
-    mainClass.set("com.chorus.engine.sample.claude.ClaudeCodeApplication")
+    // SampleApplication is the native-image main: it supports both CLI mode (default)
+    // and web mode (--spring.profiles.active=web). ClaudeCodeApplication is invoked
+    // from SpringCliRunner when not in web mode.
+    mainClass.set("com.chorus.engine.sample.SampleApplication")
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
     mainClass.set("com.chorus.engine.sample.SampleApplication")
 }
 
-tasks.named("processAot") { enabled = false }
 tasks.named("processTestAot") { enabled = false }
 
 dependencies {

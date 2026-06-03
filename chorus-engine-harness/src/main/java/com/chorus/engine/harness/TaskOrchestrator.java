@@ -126,7 +126,7 @@ public final class TaskOrchestrator {
         @NonNull TaskRoute route,
         @NonNull ExecutionMode mode
     ) {
-        if (route.path() == TaskPath.DIRECT_AGENT_PATH) {
+        if (route.path() == TaskPath.DIRECT_AGENT_PATH || route.path() == TaskPath.CACHE_AMPLIFIED_PATH) {
             return List.of();
         }
 

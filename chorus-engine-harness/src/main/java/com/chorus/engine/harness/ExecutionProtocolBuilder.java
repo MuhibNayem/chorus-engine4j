@@ -21,7 +21,8 @@ public final class ExecutionProtocolBuilder {
         stages.add(ExecutionStage.CLASSIFIED);
 
         boolean requiresPlan = route.kind() != TaskKind.ANSWER_ONLY
-            && route.kind() != TaskKind.INSPECT_ONLY;
+            && route.kind() != TaskKind.INSPECT_ONLY
+            && route.path() != TaskPath.CACHE_AMPLIFIED_PATH;
         boolean requiresPatchDiscipline = route.path() == TaskPath.PARALLEL_MULTI_WORKER_PATH
             || route.kind() == TaskKind.SINGLE_FILE_EDIT
             || route.kind() == TaskKind.MULTI_FILE_EDIT;

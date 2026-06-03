@@ -57,6 +57,41 @@ class TaskRouterTest {
         assertThat(route.lane()).isEqualTo(ExecutionLane.BACKGROUND_ASYNC);
     }
 
+    // --- CACHE_AMPLIFIED_PATH routing ---
+
+    @Test
+    void cachePatternMatchesUnambiguousRecallPhrases() {
+        assertThat(router.route("remind me what we decided", "").path())
+            .isEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        assertThat(router.route("can you remind me what the output was", "").path())
+            .isEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        assertThat(router.route("show me the output again", "").path())
+            .isEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        assertThat(router.route("repeat the last thing you said", "").path())
+            .isEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        assertThat(router.route("what was that result", "").path())
+            .isEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+    }
+
+    @Test
+    void cachePatternDoesNotMatchActionQueriesWithAmbiguousWords() {
+        // "again" in an action query must not route to cache
+        assertThat(router.route("fix the build again", "").path())
+            .isNotEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        // "update on" is a status query but describes action work
+        assertThat(router.route("update on the login bug", "").path())
+            .isNotEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        // "status of" combined with task work
+        assertThat(router.route("what is the status of the authentication refactor", "").path())
+            .isNotEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        // "recently" is too vague
+        assertThat(router.route("what files were recently changed", "").path())
+            .isNotEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+        // "just did" in a work context
+        assertThat(router.route("run the tests again", "").path())
+            .isNotEqualTo(TaskPath.CACHE_AMPLIFIED_PATH);
+    }
+
     @Test
     void buildVerificationCriteriaForResearch() {
         TaskRoute route = new TaskRoute(TaskKind.RESEARCH, ExecutionLane.FOREGROUND_SYNC,
