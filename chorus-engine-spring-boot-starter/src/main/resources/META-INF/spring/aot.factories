@@ -6,4 +6,5 @@ com.chorus.engine.springboot.mcp.McpAnnotationAotProcessor,\
 com.chorus.engine.springboot.guardrail.GuardrailAnnotationAotProcessor,\
 com.chorus.engine.springboot.skill.SkillAnnotationAotProcessor,\
 com.chorus.engine.springboot.telemetry.EventHandlerAnnotationAotProcessor,\
-com.chorus.engine.springboot.tool.StandaloneToolAnnotationAotProcessor
+com.chorus.engine.springboot.tool.StandaloneToolAnnotationAotProcessor,\
+com.chorus.engine.springboot.llm.LlmAnnotationAotProcessor

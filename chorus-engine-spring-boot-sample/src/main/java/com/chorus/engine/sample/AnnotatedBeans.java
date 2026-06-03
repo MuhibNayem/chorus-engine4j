@@ -103,24 +103,17 @@ class PrimaryProviderMarker {}
 
 @Component
 class ChorusProviderConfig {
-    @org.springframework.context.annotation.Bean
     @com.chorus.engine.annotation.LlmProvider(name = "openai", type = "openai",
             baseUrl = "${OPENAI_BASE_URL:https://api.openai.com/v1}", apiKeyProperty = "OPENAI_API_KEY")
-    com.chorus.engine.llm.LlmClient openAiProvider() { return null; }
+    void registerOpenAi() {}
 
-    @org.springframework.context.annotation.Bean
     @com.chorus.engine.annotation.LlmProvider(name = "anthropic", type = "anthropic", apiKeyProperty = "ANTHROPIC_API_KEY")
-    com.chorus.engine.llm.LlmClient anthropicProvider() { return null; }
+    void registerAnthropic() {}
 
-    @org.springframework.context.annotation.Bean
-    @com.chorus.engine.annotation.LlmProvider(name = "gemini", type = "gemini", apiKeyProperty = "GEMINI_API_KEY")
-    com.chorus.engine.llm.LlmClient geminiProvider() { return null; }
-
-    @org.springframework.context.annotation.Bean
     @com.chorus.engine.annotation.EmbeddingProvider(name = "openai-embeddings", type = "openai",
             baseUrl = "https://api.openai.com/v1", model = "text-embedding-3-small",
             dimensions = 1536, apiKeyProperty = "OPENAI_API_KEY")
-    com.chorus.engine.llm.embed.EmbeddingClient openAiEmbeddingProvider() { return null; }
+    void registerEmbedding() {}
 }
 
 @Component

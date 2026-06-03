@@ -67,6 +67,7 @@ import com.chorus.engine.springboot.guardrail.GuardrailAnnotationProcessor;
 import com.chorus.engine.springboot.skill.SkillAnnotationProcessor;
 import com.chorus.engine.springboot.telemetry.EventHandlerAnnotationProcessor;
 import com.chorus.engine.springboot.tool.StandaloneToolAnnotationProcessor;
+import com.chorus.engine.springboot.llm.LlmAnnotationProcessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -442,6 +443,13 @@ public class ChorusAutoConfiguration {
     @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
     public static StandaloneToolAnnotationProcessor standaloneToolAnnotationProcessor() {
         return new StandaloneToolAnnotationProcessor();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "chorus", name = "annotations.enabled", havingValue = "true", matchIfMissing = true)
+    public static LlmAnnotationProcessor llmAnnotationProcessor() {
+        return new LlmAnnotationProcessor();
     }
 
 
