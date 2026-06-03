@@ -240,8 +240,6 @@ spring:
   config:
     activate:
       on-profile: dev
-
-spring:
   main:
     # CLI mode — no embedded HTTP server.
     web-application-type: none
